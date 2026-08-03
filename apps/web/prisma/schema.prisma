@@ -1,0 +1,357 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrgType {
+  system
+  province
+  district
+  commune
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum DeviceType {
+  smart_speaker
+  led_screen
+}
+
+enum DeviceStatus {
+  active
+  maintenance
+  retired
+}
+
+enum LocationType {
+  cultural_site
+  religious_site
+  signboard
+  smart_device
+}
+
+enum OperationStatus {
+  active
+  inactive
+  suspended
+  expired
+}
+
+enum LocationStatus {
+  draft
+  active
+  archived
+}
+
+enum ContentStatus {
+  draft
+  pending
+  approved
+  ready_to_air
+  rejected
+  scheduled
+  aired
+}
+
+enum ContentCategory {
+  heritage
+  festival
+  admin_notice
+  emergency
+  other
+}
+
+enum CampaignType {
+  periodic
+  oneshot
+  emergency
+}
+
+enum ScheduleStatus {
+  scheduled
+  running
+  completed
+  cancelled
+  failed
+}
+
+enum CommandType {
+  set_volume
+  reboot
+  power_on
+  power_off
+  play
+  stop
+  cache_media
+}
+
+enum CommandStatus {
+  pending
+  sent
+  acked
+  failed
+  timeout
+}
+
+enum IncidentStatus {
+  open
+  assigned
+  in_progress
+  resolved
+  closed
+}
+
+enum IncidentSeverity {
+  low
+  medium
+  high
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  type      OrgType
+  parentId  String?
+  parent    Organization?  @relation("OrgTree", fields: [parentId], references: [id])
+  children  Organization[] @relation("OrgTree")
+  path      String
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users           User[]
+  clusters        DeviceCluster[]
+  devices         Device[]
+  locations       Location[]
+  contents        Content[]
+  campaigns       Campaign[]
+  incidents       IncidentReport[]
+  provinceLocations Location[] @relation("ProvinceOrg")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  email        String?
+  role         UserRole
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id])
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  locations       Location[]
+  contents        Content[]
+  commands        DeviceCommand[]
+  incidents       IncidentReport[] @relation("Reporter")
+  assignedIncidents IncidentReport[] @relation("Assignee")
+  schedules       BroadcastSchedule[]
+}
+
+model DeviceCluster {
+  id          String   @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
+  code        String
+  name        String
+  description String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  devices Device[]
+  targets ScheduleTarget[]
+}
+
+model Device {
+  id              String       @id @default(cuid())
+  orgId           String
+  org             Organization @relation(fields: [orgId], references: [id])
+  clusterId       String?
+  cluster         DeviceCluster? @relation(fields: [clusterId], references: [id])
+  deviceCode      String       @unique
+  name            String
+  type            DeviceType   @default(smart_speaker)
+  lat             Float?
+  lng             Float?
+  address         String?
+  volumeDefault   Int          @default(70)
+  status          DeviceStatus @default(active)
+  online          Boolean      @default(false)
+  lastSeenAt      DateTime?
+  rssi            Int?
+  volume          Int          @default(70)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  commands  DeviceCommand[]
+  incidents IncidentReport[]
+  linkedLocations Location[]
+}
+
+model Location {
+  id                 String          @id @default(cuid())
+  orgId              String
+  org                Organization    @relation(fields: [orgId], references: [id])
+  provinceOrgId      String?
+  provinceOrg        Organization?   @relation("ProvinceOrg", fields: [provinceOrgId], references: [id])
+  createdById        String
+  createdBy          User            @relation(fields: [createdById], references: [id])
+  name               String
+  locationType       LocationType
+  locationSubtype    String?
+  address            String?
+  lat                Float
+  lng                Float
+  licenseNumber      String?
+  licenseConditions  String?
+  licenseDate        DateTime?
+  expiryDate         DateTime?
+  operationStatus    OperationStatus @default(active)
+  linkedDeviceId     String?
+  linkedDevice       Device?         @relation(fields: [linkedDeviceId], references: [id])
+  note               String?
+  status             LocationStatus  @default(active)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  media LocationMedia[]
+}
+
+model LocationMedia {
+  id         String   @id @default(cuid())
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  storageKey String
+  mimeType   String?
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model Content {
+  id          String          @id @default(cuid())
+  orgId       String
+  org         Organization    @relation(fields: [orgId], references: [id])
+  authorId    String
+  author      User            @relation(fields: [authorId], references: [id])
+  title       String
+  bodyPlain   String
+  category    ContentCategory @default(other)
+  status      ContentStatus   @default(draft)
+  mediaAssetId String?
+  mediaAsset  MediaAsset?     @relation(fields: [mediaAssetId], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  items BroadcastItem[]
+}
+
+model MediaAsset {
+  id           String   @id @default(cuid())
+  storageKey   String
+  cdnUrl       String
+  mimeType     String   @default("audio/mpeg")
+  durationSec  Int      @default(60)
+  checksum     String?
+  signature    String?
+  createdAt    DateTime @default(now())
+
+  contents Content[]
+  items    BroadcastItem[]
+}
+
+model Campaign {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  name      String
+  type      CampaignType @default(oneshot)
+  priority  Int          @default(0)
+  status    String       @default("active")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  schedules BroadcastSchedule[]
+}
+
+model BroadcastSchedule {
+  id          String         @id @default(cuid())
+  campaignId  String
+  campaign    Campaign       @relation(fields: [campaignId], references: [id])
+  name        String
+  startAt     DateTime
+  timezone    String         @default("Asia/Ho_Chi_Minh")
+  preempt     Boolean        @default(false)
+  status      ScheduleStatus @default(scheduled)
+  createdById String?
+  createdBy   User?          @relation(fields: [createdById], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  items   BroadcastItem[]
+  targets ScheduleTarget[]
+}
+
+model BroadcastItem {
+  id            String            @id @default(cuid())
+  scheduleId    String
+  schedule      BroadcastSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  contentId     String?
+  content       Content?          @relation(fields: [contentId], references: [id])
+  mediaAssetId  String?
+  mediaAsset    MediaAsset?       @relation(fields: [mediaAssetId], references: [id])
+  sortOrder     Int               @default(0)
+}
+
+model ScheduleTarget {
+  id         String            @id @default(cuid())
+  scheduleId String
+  schedule   BroadcastSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  clusterId  String
+  cluster    DeviceCluster     @relation(fields: [clusterId], references: [id])
+  include    Boolean           @default(true)
+}
+
+model DeviceCommand {
+  id            String        @id @default(cuid())
+  deviceId      String
+  device        Device        @relation(fields: [deviceId], references: [id])
+  commandType   CommandType
+  payload       Json?
+  issuedById    String?
+  issuedBy      User?         @relation(fields: [issuedById], references: [id])
+  status        CommandStatus @default(pending)
+  scheduleId    String?
+  createdAt     DateTime      @default(now())
+  ackedAt       DateTime?
+}
+
+model IncidentReport {
+  id          String           @id @default(cuid())
+  deviceId    String
+  device      Device           @relation(fields: [deviceId], references: [id])
+  reporterId  String
+  reporter    User             @relation("Reporter", fields: [reporterId], references: [id])
+  orgId       String
+  org         Organization     @relation(fields: [orgId], references: [id])
+  title       String
+  description String
+  photoKeys   String[]         @default([])
+  severity    IncidentSeverity @default(medium)
+  status      IncidentStatus   @default(open)
+  assigneeId  String?
+  assignee    User?            @relation("Assignee", fields: [assigneeId], references: [id])
+  createdAt   DateTime         @default(now())
+  resolvedAt  DateTime?
+}

@@ -1,0 +1,17 @@
+# Prisma
+prisma/migrations
+
+# Uploads
+apps/web/public/uploads/*
+!apps/web/public/uploads/.gitkeep
+
+# deps
+node_modules
+apps/web/node_modules
+apps/web/.next
+.env
+apps/web/.env
+
+# OS
+.DS_Store
+*.log

@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mpcis-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mpcis
+      POSTGRES_PASSWORD: mpcis
+      POSTGRES_DB: mpcis
+    ports:
+      - "5433:5432"
+    volumes:
+      - mpcis_pg_data:/var/lib/postgresql/data
+
+volumes:
+  mpcis_pg_data:
