@@ -4,6 +4,9 @@ import { getSession } from "@/lib/auth";
 import { canUpdateLocation } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
 import { UserRole } from "@prisma/client";
+import { LOCATION_TYPE_LABELS } from "@/lib/labels";
+
+const VALID_LOCATION_TYPES = new Set(Object.keys(LOCATION_TYPE_LABELS));
 
 type Ctx = { params: { id: string } };
 
@@ -19,7 +22,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   if (user.role === UserRole.USER && location.orgId !== user.orgId) {
     return jsonError("Forbidden", 403);
   }
-  return jsonOk({ location });
+  return jsonOk({
+    location,
+    locationTypeLabel: LOCATION_TYPE_LABELS[location.locationType],
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
@@ -34,6 +40,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
 
   const body = await req.json().catch(() => ({}));
+  if (body.locationType && !VALID_LOCATION_TYPES.has(body.locationType)) {
+    return jsonError(
+      `locationType không hợp lệ. Hỗ trợ: ${Array.from(VALID_LOCATION_TYPES).join(", ")}`,
+    );
+  }
+
   const location = await prisma.location.update({
     where: { id: params.id },
     data: {
@@ -52,5 +64,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     },
     include: { media: true, org: true },
   });
-  return jsonOk({ location });
+  return jsonOk({
+    location,
+    locationTypeLabel: LOCATION_TYPE_LABELS[location.locationType],
+  });
 }

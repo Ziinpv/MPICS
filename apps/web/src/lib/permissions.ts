@@ -25,6 +25,14 @@ export function canUpdateLocation(user: SessionUser) {
   return user.role === UserRole.USER || user.role === UserRole.ADMIN;
 }
 
+export function canManageUsers(user: SessionUser) {
+  return user.role === UserRole.ADMIN;
+}
+
+export function canManageLocationTypes(user: SessionUser) {
+  return user.role === UserRole.ADMIN;
+}
+
 /** User chỉ thấy org của mình; Admin thấy subtree path */
 export function orgFilterForList(user: SessionUser): { orgId?: string; orgPathPrefix?: string } {
   if (user.role === UserRole.ADMIN) {

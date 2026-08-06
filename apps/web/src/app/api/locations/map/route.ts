@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
 import { LocationType, OperationStatus, UserRole } from "@prisma/client";
+import { LOCATION_TYPE_LABELS } from "@/lib/labels";
+
+const VALID_LOCATION_TYPES = new Set(Object.keys(LOCATION_TYPE_LABELS));
 
 export async function GET(req: NextRequest) {
   const user = await getSession();
@@ -11,6 +14,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const locationType = searchParams.get("location_type") as LocationType | null;
   const operationStatus = searchParams.get("operation_status") as OperationStatus | null;
+
+  if (locationType && !VALID_LOCATION_TYPES.has(locationType)) {
+    return jsonError(
+      `location_type không hợp lệ. Hỗ trợ: ${Array.from(VALID_LOCATION_TYPES).join(", ")}`,
+    );
+  }
 
   const where: Record<string, unknown> = {};
   if (user.role === UserRole.USER) where.orgId = user.orgId;
@@ -32,6 +41,7 @@ export async function GET(req: NextRequest) {
         id: l.id,
         name: l.name,
         locationType: l.locationType,
+        locationTypeLabel: LOCATION_TYPE_LABELS[l.locationType] || l.locationType,
         operationStatus: l.operationStatus,
         orgName: l.org.name,
         licenseNumber: l.licenseNumber,

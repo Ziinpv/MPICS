@@ -153,30 +153,32 @@ flowchart LR
 ## 7. Lộ trình theo tuần
 
 ### Tuần 1 — Nền tảng + GIS User
-- [ ] Docker Compose Postgres
-- [ ] Prisma schema (+ `Location`) + migrate + seed
-- [ ] Next.js: login + layout Admin/User
-- [ ] User: map + list + form tạo location (pick GPS + ảnh)
-- [ ] Admin: xem list devices / locations (read)
+- [x] Docker Compose Postgres
+- [x] Prisma schema (+ `Location`) + migrate + seed
+- [x] Next.js: login + layout Admin/User
+- [x] User: map + list + form tạo location (pick GPS + ảnh)
+- [x] Admin: xem list devices / locations (read)
 
-**Milestone:** User tạo địa điểm → thấy trên map & list.
+**Milestone:** User tạo địa điểm → thấy trên map & list. ✅
 
 ### Tuần 2 — Phát sóng Admin + Simulator
-- [ ] Admin: CRUD content → `ready_to_air` (MediaAsset mock; bỏ TTS thật)
-- [ ] Admin: lịch + target cụm → publish → `DeviceCommand`
-- [ ] Device simulator: heartbeat + poll `play` → ack
-- [ ] Dashboard số liệu từ DB
+- [x] Admin: CRUD content → `ready_to_air` (MediaAsset mock; bỏ TTS thật)
+- [x] Admin: lịch + target cụm → publish → `DeviceCommand`
+- [x] Device simulator: heartbeat + poll `play` → ack
+- [x] Dashboard số liệu từ DB
 
-**Milestone:** Path A + Path B chạy local.
+**Milestone:** Path A + Path B chạy local. ✅
 
 ### Tuần 3 — Bổ sung (nếu còn time)
-- [ ] Báo sự cố + resolve
-- [ ] Admin map thiết bị (layer riêng hoặc gộp)
-- [ ] `location.update` + lọc map theo type/status
-- [ ] Volume/reboot log lệnh
-- [ ] README 1 lệnh chạy demo
+- [x] Báo sự cố + resolve
+- [x] Admin map thiết bị (layer riêng hoặc gộp)
+- [x] `location.update` + lọc map theo type/status (+ UI sửa)
+- [x] Volume/reboot log lệnh
+- [x] README 1 lệnh chạy demo
 
-**Milestone:** Walkthrough 10–15 phút đủ 2 path.
+**Milestone:** Walkthrough 10–15 phút đủ 2 path. ✅ **(Demo thành công — 6 Aug 2026)**
+
+> Tiếp theo (production): xem [04_TienDo_Va_Roadmap_SanXuat.md](./04_TienDo_Va_Roadmap_SanXuat.md).
 
 ---
 
@@ -221,8 +223,10 @@ flowchart LR
 
 ## 11. Bước tiếp theo ngay
 
-1. Khởi tạo Next.js + Docker Postgres + Prisma (`Location` + seed)  
-2. Login + layout + **Path A** (User GIS)  
-3. **Path B** Admin phát sóng + simulator  
+> ~~Khởi tạo demo~~ — **đã xong.** Chuyển sang phase sản xuất:
 
-Bạn muốn bắt đầu code phase Tuần 1 không?
+1. **P0 Hardening** — secret, đổi mật khẩu, migrate, staging (xem [04_TienDo…](./04_TienDo_Va_Roadmap_SanXuat.md))
+2. **P1 GIS sản xuất** — object storage ảnh, validate tọa độ, phân quyền org
+3. **P2 IoT/phát sóng thật** — MQTT + pipeline media + UAT pilot
+
+Bạn muốn bắt đầu sprint **P0 Hardening** (đổi mật khẩu + migrate + staging checklist) không?

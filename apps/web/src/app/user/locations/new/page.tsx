@@ -6,12 +6,17 @@ import MapView from "@/components/MapView";
 import { PageHeader, Card, Btn } from "@/components/ui";
 import {
   LOCATION_SUBTYPES_BY_TYPE,
-  LOCATION_TYPE_LABELS,
   OPERATION_STATUS_LABELS,
   requiresLicenseDocs,
 } from "@/lib/labels";
+import { LocationTypeSelect } from "@/components/DeviceTypeSelect";
+import { GpsLocateButton } from "@/components/GpsLocateButton";
+import { ActionIcon } from "@/components/ActionIcon";
+import { DeviceTypeIcon } from "@/components/DeviceTypeIcon";
+import { StatusIcon } from "@/components/StatusIcon";
 
 const DA_LAT_CENTER = { lat: 11.9404, lng: 108.4583 };
+const GPS_ZOOM = 16;
 
 export default function NewLocationPage() {
   const router = useRouter();
@@ -20,7 +25,7 @@ export default function NewLocationPage() {
   const [provinceId, setProvinceId] = useState("");
   const [communeId, setCommuneId] = useState("");
   const [name, setName] = useState("");
-  const [locationType, setLocationType] = useState("signboard");
+  const [locationType, setLocationType] = useState("billboard");
   const [locationSubtype, setLocationSubtype] = useState("bang_vay");
   const [address, setAddress] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
@@ -29,6 +34,8 @@ export default function NewLocationPage() {
   const [expiryDate, setExpiryDate] = useState("");
   const [operationStatus, setOperationStatus] = useState("active");
   const [pick, setPick] = useState<{ lat: number; lng: number } | null>(DA_LAT_CENTER);
+  const [mapZoom, setMapZoom] = useState(13);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [photoKeys, setPhotoKeys] = useState<string[]>([]);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +43,7 @@ export default function NewLocationPage() {
 
   const needLicense = requiresLicenseDocs(locationType);
   const subtypes = useMemo(
-    () => LOCATION_SUBTYPES_BY_TYPE[locationType] || LOCATION_SUBTYPES_BY_TYPE.signboard,
+    () => LOCATION_SUBTYPES_BY_TYPE[locationType] || LOCATION_SUBTYPES_BY_TYPE.billboard,
     [locationType]
   );
 
@@ -205,18 +212,15 @@ export default function NewLocationPage() {
             <input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div>
-            <label>Phân loại</label>
-            <select value={locationType} onChange={(e) => setLocationType(e.target.value)}>
-              {Object.entries(LOCATION_TYPE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
+            <label className="flex items-center gap-1.5">
+              <DeviceTypeIcon type={locationType} size="sm" />
+              Phân loại
+            </label>
+            <LocationTypeSelect value={locationType} onChange={setLocationType} />
             <p className="mt-1 text-xs text-slate-500">
               {needLicense
                 ? "Loại này yêu cầu hồ sơ giấy phép / văn bản liên quan."
-                : "Biển hiệu / thiết bị IoT: chỉ cần địa chỉ và tình trạng hoạt động."}
+                : "Bảng hiệu / bạt gió / thiết bị truyền thông: cần địa chỉ và tình trạng hoạt động."}
             </p>
           </div>
           <div>
@@ -285,7 +289,8 @@ export default function NewLocationPage() {
           )}
 
           <div>
-            <label>
+            <label className="flex items-center gap-1.5">
+              <StatusIcon operationStatus={operationStatus} size="sm" />
               Tình trạng hoạt động <span className="text-rose-600">*</span>
             </label>
             <select value={operationStatus} onChange={(e) => setOperationStatus(e.target.value)} required>
@@ -315,18 +320,75 @@ export default function NewLocationPage() {
 
         <Card>
           <h2 className="mb-2 font-medium">Chọn tọa độ trên bản đồ</h2>
-          <p className="mb-3 text-sm text-slate-500">Click lên map để pick GPS (mặc định Đà Lạt)</p>
+          <p className="mb-3 text-sm text-slate-500">
+            Lấy GPS thiết bị hoặc click lên map để chọn vị trí
+          </p>
+
+          <div className="mb-3">
+            <GpsLocateButton
+              onLocated={({ lat, lng, accuracy }) => {
+                setPick({ lat, lng });
+                setMapZoom(GPS_ZOOM);
+                setGpsAccuracy(accuracy);
+                setMsg("");
+              }}
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-1.5">
+              <ActionIcon action="gps" size="sm" />
+              Latitude / Longitude
+            </label>
+            <div className="mt-1 grid grid-cols-2 gap-3">
+            <div>
+              <label>Latitude</label>
+              <input
+                type="number"
+                step="any"
+                value={pick?.lat ?? ""}
+                onChange={(e) => {
+                  const lat = Number(e.target.value);
+                  if (!Number.isFinite(lat)) return;
+                  setPick((prev) => ({ lat, lng: prev?.lng ?? DA_LAT_CENTER.lng }));
+                  setGpsAccuracy(null);
+                }}
+                required
+              />
+            </div>
+            <div>
+              <label>Longitude</label>
+              <input
+                type="number"
+                step="any"
+                value={pick?.lng ?? ""}
+                onChange={(e) => {
+                  const lng = Number(e.target.value);
+                  if (!Number.isFinite(lng)) return;
+                  setPick((prev) => ({ lat: prev?.lat ?? DA_LAT_CENTER.lat, lng }));
+                  setGpsAccuracy(null);
+                }}
+                required
+              />
+            </div>
+            </div>
+          </div>
+
           <MapView
             pickMode
             pickPosition={pick}
-            onPick={setPick}
+            onPick={(pos) => {
+              setPick(pos);
+              setGpsAccuracy(null);
+            }}
             height="420px"
             center={[pick?.lat ?? DA_LAT_CENTER.lat, pick?.lng ?? DA_LAT_CENTER.lng]}
-            zoom={13}
+            zoom={mapZoom}
           />
           {pick && (
             <p className="mt-2 font-mono text-xs text-slate-600">
               lat: {pick.lat.toFixed(6)} · lng: {pick.lng.toFixed(6)}
+              {gpsAccuracy != null ? ` · ±${Math.round(gpsAccuracy)}m` : ""}
             </p>
           )}
         </Card>

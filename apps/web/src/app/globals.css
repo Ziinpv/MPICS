@@ -3,22 +3,69 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f8fafc;
+  --background: #f3f7f4;
+  --foreground: #0f1f17;
+  --surface: #ffffff;
+  --border: #d7e3db;
+  --primary: #146f47;
+  --primary-hover: #0f5839;
+  --accent: #f98507;
+  --accent-soft: #fff8eb;
+  --muted: #5b6b62;
+  --ring: rgba(31, 138, 88, 0.22);
 }
 
 body {
-  background: var(--bg);
-  color: #0f172a;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(31, 138, 88, 0.08), transparent 55%),
+    radial-gradient(900px 400px at 100% 0%, rgba(249, 133, 7, 0.07), transparent 50%),
+    var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-2xl border border-brand-100/80 bg-white p-4 shadow-card sm:p-5;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-brand-100 bg-white px-4 py-2.5 text-sm font-medium text-brand-800 shadow-soft transition hover:border-brand-200 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40 disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-50;
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 disabled:opacity-50;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition;
+  }
+
+  .chip-idle {
+    @apply border-brand-100 bg-white text-slate-600 hover:bg-brand-50;
+  }
+
+  .chip-active {
+    @apply border-brand-600 bg-brand-50 text-brand-900 shadow-soft;
+  }
 }
 
 input,
 select,
 textarea {
-  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100;
+  @apply w-full rounded-xl border border-brand-100 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-soft outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-400/25;
 }
 
 label {
-  @apply mb-1 block text-sm font-medium text-slate-700;
+  @apply mb-1.5 block text-sm font-medium text-slate-700;
 }
 
 table {
@@ -26,9 +73,15 @@ table {
 }
 
 th {
-  @apply border-b border-slate-200 px-3 py-2 font-medium text-slate-500;
+  @apply border-b border-brand-100 px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500;
 }
 
 td {
-  @apply border-b border-slate-100 px-3 py-2;
+  @apply border-b border-slate-100/90 px-3 py-3 align-middle;
+}
+
+/* Leaflet custom device/location markers */
+.mpcis-device-marker {
+  background: transparent !important;
+  border: none !important;
 }

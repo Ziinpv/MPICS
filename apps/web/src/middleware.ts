@@ -2,7 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE = "mpcis_token";
-const secret = new TextEncoder().encode(process.env.JWT_SECRET || "mpcis-demo-secret");
+
+function getSecret() {
+  const value = process.env.JWT_SECRET?.trim();
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || "development";
+  if (!value) {
+    if (appEnv === "production" || appEnv === "staging") {
+      throw new Error("JWT_SECRET required");
+    }
+    return new TextEncoder().encode("mpcis-demo-secret");
+  }
+  return new TextEncoder().encode(value);
+}
 
 function clearSession(res: NextResponse) {
   res.cookies.set(COOKIE, "", {
@@ -20,7 +31,11 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get(COOKIE)?.value;
 
   const isAuthPage = pathname.startsWith("/login");
-  const isProtected = pathname.startsWith("/admin") || pathname.startsWith("/user");
+  const isPasswordPage = pathname.startsWith("/account/password");
+  const isProtected =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/user") ||
+    pathname.startsWith("/account");
 
   if (!token && isProtected) {
     return NextResponse.redirect(new URL("/login", req.url));
@@ -28,10 +43,18 @@ export async function middleware(req: NextRequest) {
 
   if (token && (isProtected || isAuthPage || pathname === "/")) {
     try {
-      const { payload } = await jwtVerify(token, secret);
+      const { payload } = await jwtVerify(token, getSecret());
       const role = payload.role as string;
+      const mustChange = Boolean(payload.mustChangePassword);
+
+      if (mustChange && !isPasswordPage) {
+        return NextResponse.redirect(new URL("/account/password", req.url));
+      }
 
       if (isAuthPage || pathname === "/") {
+        if (mustChange) {
+          return NextResponse.redirect(new URL("/account/password", req.url));
+        }
         return NextResponse.redirect(new URL(role === "ADMIN" ? "/admin" : "/user", req.url));
       }
       if (pathname.startsWith("/admin") && role !== "ADMIN") {
@@ -41,7 +64,6 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL("/admin", req.url));
       }
     } catch {
-      // Token hỏng / hết hạn: xóa cookie rồi về login
       if (isProtected) {
         return clearSession(NextResponse.redirect(new URL("/login", req.url)));
       }
@@ -55,5 +77,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/admin/:path*", "/user/:path*"],
+  matcher: ["/", "/login", "/admin/:path*", "/user/:path*", "/account/:path*"],
 };

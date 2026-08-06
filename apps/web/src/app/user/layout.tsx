@@ -1,5 +1,4 @@
-import { cookies } from "next/headers";
-import { getSession, COOKIE, clearAuthCookie } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/ui";
 import { redirect } from "next/navigation";
@@ -15,8 +14,7 @@ const nav = [
 export default async function UserLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session || session.role !== "USER") {
-    await clearAuthCookie();
-    redirect("/login");
+    redirect("/api/auth/logout");
   }
 
   const user = await prisma.user.findUnique({
@@ -24,16 +22,13 @@ export default async function UserLayout({ children }: { children: React.ReactNo
     include: { org: true },
   });
 
-  // JWT còn nhưng user đã bị seed lại / xóa → xóa cookie để tránh redirect loop
+  // JWT còn nhưng user đã bị seed lại / xóa → logout qua Route Handler
   if (!user) {
-    cookies().set(COOKIE, "", {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-      expires: new Date(0),
-    });
-    redirect("/login");
+    redirect("/api/auth/logout");
+  }
+
+  if (user.mustChangePassword) {
+    redirect("/account/password");
   }
 
   return (

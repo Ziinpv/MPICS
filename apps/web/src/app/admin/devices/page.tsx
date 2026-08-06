@@ -2,20 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Btn } from "@/components/ui";
+import { DEVICE_TYPE_LABELS } from "@/lib/labels";
+import { DeviceTypeSelect, TypeBadge } from "@/components/DeviceTypeSelect";
+import { StatusIcon } from "@/components/StatusIcon";
+import { ActionIcon } from "@/components/ActionIcon";
 
 export default function AdminDevicesPage() {
   const [devices, setDevices] = useState<any[]>([]);
+  const [type, setType] = useState("");
   const [msg, setMsg] = useState("");
 
   async function load() {
-    const res = await fetch("/api/devices");
+    const q = new URLSearchParams();
+    if (type) q.set("device_type", type);
+    const res = await fetch(`/api/devices?${q}`);
     const data = await res.json();
     setDevices(data.devices || []);
   }
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
 
   async function sendCommand(id: string, commandType: string, payload?: object) {
     setMsg("");
@@ -33,12 +41,20 @@ export default function AdminDevicesPage() {
     <div>
       <PageHeader title="Thiết bị IoT" />
       {msg && <p className="mb-3 text-sm text-teal-700">{msg}</p>}
+      <Card className="mb-4">
+        <label className="mb-1.5 flex items-center gap-1.5">
+          <ActionIcon action="search" size="sm" />
+          Lọc theo loại thiết bị
+        </label>
+        <DeviceTypeSelect value={type} onChange={setType} allowAll variant="chips" />
+      </Card>
       <Card>
         <table>
           <thead>
             <tr>
               <th>Mã</th>
               <th>Tên</th>
+              <th>Loại</th>
               <th>Cụm</th>
               <th>Online</th>
               <th>Volume</th>
@@ -50,11 +66,17 @@ export default function AdminDevicesPage() {
               <tr key={d.id}>
                 <td className="font-mono text-xs">{d.deviceCode}</td>
                 <td>{d.name}</td>
+                <td>
+                  <TypeBadge type={d.type} label={DEVICE_TYPE_LABELS[d.type] || d.type} />
+                </td>
                 <td>{d.cluster?.name}</td>
                 <td>
-                  <span className={d.online ? "text-teal-700" : "text-slate-400"}>
-                    {d.online ? "Online" : "Offline"}
-                  </span>
+                  <StatusIcon
+                    online={d.online}
+                    showLabel
+                    label={d.online ? "Online" : "Offline"}
+                    size="sm"
+                  />
                 </td>
                 <td>{d.volume}</td>
                 <td className="space-x-2">

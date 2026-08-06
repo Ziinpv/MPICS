@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
+import {
+  DEVICE_TYPE_LABELS,
+  DEVICE_TYPE_OPTIONS,
+  LOCATION_SUBTYPES_BY_TYPE,
+  LOCATION_TYPE_LABELS,
+  LOCATION_TYPE_OPTIONS,
+} from "@/lib/labels";
 
 export async function GET() {
   const user = await getSession();
@@ -24,10 +31,32 @@ export async function GET() {
     orderBy: { name: "asc" },
   });
 
+  const typeDefs = await prisma.locationTypeDef.findMany({
+    where: { active: true },
+    orderBy: [{ groupType: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+  });
+
+  const locationSubtypesByType: Record<string, { value: string; label: string }[]> = {
+    ...LOCATION_SUBTYPES_BY_TYPE,
+  };
+  if (typeDefs.length) {
+    const fromDb: Record<string, { value: string; label: string }[]> = {};
+    for (const t of typeDefs) {
+      if (!fromDb[t.groupType]) fromDb[t.groupType] = [];
+      fromDb[t.groupType].push({ value: t.code, label: t.name });
+    }
+    Object.assign(locationSubtypesByType, fromDb);
+  }
+
   return jsonOk({
     orgs,
     clusters,
     province,
     communeCount: orgs.filter((o) => o.type === "commune").length,
+    locationTypes: LOCATION_TYPE_OPTIONS,
+    locationTypeLabels: LOCATION_TYPE_LABELS,
+    locationSubtypesByType,
+    deviceTypes: DEVICE_TYPE_OPTIONS,
+    deviceTypeLabels: DEVICE_TYPE_LABELS,
   });
 }

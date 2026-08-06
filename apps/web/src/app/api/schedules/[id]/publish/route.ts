@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { canManageSchedule } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
+import { writeAuditLog } from "@/lib/audit";
+import { clientIp } from "@/lib/rateLimit";
 
 type Ctx = { params: { id: string } };
 
-export async function POST(_req: NextRequest, { params }: Ctx) {
+export async function POST(req: NextRequest, { params }: Ctx) {
   const user = await getSession();
   if (!user) return jsonError("Unauthorized", 401);
   if (!canManageSchedule(user)) return jsonError("Forbidden", 403);
@@ -42,8 +44,8 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
           status: "pending",
           scheduleId: schedule.id,
         },
-      })
-    )
+      }),
+    ),
   );
 
   await prisma.broadcastSchedule.update({
@@ -57,6 +59,15 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
       data: { status: "scheduled" },
     });
   }
+
+  await writeAuditLog({
+    actor: user,
+    action: "schedule.publish",
+    entityType: "BroadcastSchedule",
+    entityId: schedule.id,
+    meta: { commandsCreated: commands.length, deviceCount: devices.length },
+    ip: clientIp(req),
+  });
 
   return jsonOk({
     scheduleId: schedule.id,

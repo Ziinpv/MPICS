@@ -9,6 +9,8 @@
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "sim": "tsx scripts/device-sim.ts"
   },
@@ -22,6 +24,7 @@
     "date-fns": "^4.4.0",
     "jose": "^6.2.4",
     "leaflet": "^1.9.4",
+    "lucide-react": "^1.28.0",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",

@@ -12,7 +12,8 @@ Tài liệu thiết kế kỹ thuật cho **MobiFone Public Communication & Info
 | 1 | [Sơ đồ kiến trúc / Service](./01_KienTruc_Service.md) | Context, microservices (có `location-service`), MQTT |
 | 2 | [Mô hình dữ liệu](./02_MoHinhDuLieu.md) | ER, `locations`, PostgreSQL, MongoDB, Redis |
 | 3 | [Plan MVP Demo](./03_Plan_MVP_Demo.md) | UI + DB seed + 2 happy path |
-| 4 | [10 nghiệp vụ cơ bản](./nghiepvu/README.md) | Chi tiết từng domain |
+| 4 | [Tiến độ & lộ trình sản xuất](./04_TienDo_Va_Roadmap_SanXuat.md) | Demo OK · P0→P3 production |
+| 5 | [10 nghiệp vụ cơ bản](./nghiepvu/README.md) | Chi tiết từng domain |
 
 ## 10 nghiệp vụ
 

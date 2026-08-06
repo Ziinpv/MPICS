@@ -7,7 +7,7 @@
  */
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
-const CODES = (process.env.DEVICE_CODES || "SPK-XA1-01,SPK-XA1-02,SPK-XA2-01").split(",");
+const CODES = (process.env.DEVICE_CODES || "COM-XA1-01,COM-XA1-02,COM-XA2-01").split(",");
 
 async function heartbeat(deviceCode: string) {
   const res = await fetch(`${BASE}/api/sim/heartbeat`, {

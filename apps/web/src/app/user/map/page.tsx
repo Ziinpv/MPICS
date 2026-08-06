@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import MapView, { MapMarker } from "@/components/MapView";
 import { PageHeader, Card } from "@/components/ui";
-import { LOCATION_TYPE_LABELS, OPERATION_STATUS_LABELS } from "@/lib/labels";
+import { OPERATION_STATUS_LABELS } from "@/lib/labels";
+import { LocationTypeSelect } from "@/components/DeviceTypeSelect";
+import { StatusIcon } from "@/components/StatusIcon";
+import { ActionIcon } from "@/components/ActionIcon";
 
 export default function UserMapPage() {
   const [markers, setMarkers] = useState<MapMarker[]>([]);
@@ -23,7 +26,8 @@ export default function UserMapPage() {
             lat: f.geometry.coordinates[1],
             lng: f.geometry.coordinates[0],
             label: f.properties.name,
-            popup: `${LOCATION_TYPE_LABELS[f.properties.locationType] || ""} · ${
+            type: f.properties.locationType,
+            popup: `${f.properties.locationTypeLabel || f.properties.locationType} · ${
               OPERATION_STATUS_LABELS[f.properties.operationStatus] || ""
             }`,
           }))
@@ -39,30 +43,27 @@ export default function UserMapPage() {
   return (
     <div>
       <PageHeader title="Bản đồ tra cứu vị trí" />
-      <Card className="mb-4">
-        <div className="flex flex-wrap gap-3">
-          <div className="w-48">
-            <label>Loại</label>
-            <select value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="">Tất cả</option>
-              {Object.entries(LOCATION_TYPE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-48">
-            <label>Tình trạng</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">Tất cả</option>
-              {Object.entries(OPERATION_STATUS_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
+      <Card className="mb-4 space-y-3">
+        <div>
+          <label className="mb-1.5 flex items-center gap-1.5">
+            <ActionIcon action="search" size="sm" />
+            Loại
+          </label>
+          <LocationTypeSelect value={type} onChange={setType} allowAll variant="chips" />
+        </div>
+        <div className="w-48">
+          <label className="mb-1.5 flex items-center gap-1.5">
+            <StatusIcon operationStatus={status || "active"} size="sm" />
+            Tình trạng
+          </label>
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">Tất cả</option>
+            {Object.entries(OPERATION_STATUS_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
         </div>
       </Card>
       <Card>

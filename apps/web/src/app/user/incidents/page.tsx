@@ -62,7 +62,7 @@ export default function UserIncidentsPage() {
           </div>
           <div>
             <label>Tiêu đề</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Loa bị rè / cột nghiêng…" />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Thiết bị truyền thông mất sóng / bảng hiệu nghiêng…" />
           </div>
           <div>
             <label>Mô tả</label>

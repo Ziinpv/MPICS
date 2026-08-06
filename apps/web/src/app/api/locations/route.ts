@@ -4,6 +4,9 @@ import { getSession } from "@/lib/auth";
 import { canCreateLocation } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
 import { LocationType, OperationStatus, UserRole } from "@prisma/client";
+import { LOCATION_TYPE_LABELS, requiresLicenseDocs } from "@/lib/labels";
+
+const VALID_LOCATION_TYPES = new Set(Object.keys(LOCATION_TYPE_LABELS));
 
 export async function GET(req: NextRequest) {
   const user = await getSession();
@@ -12,6 +15,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const locationType = searchParams.get("location_type") as LocationType | null;
   const operationStatus = searchParams.get("operation_status") as OperationStatus | null;
+
+  if (locationType && !VALID_LOCATION_TYPES.has(locationType)) {
+    return jsonError(
+      `location_type không hợp lệ. Hỗ trợ: ${Array.from(VALID_LOCATION_TYPES).join(", ")}`,
+    );
+  }
 
   const where: Record<string, unknown> = {};
   if (user.role === UserRole.USER) {
@@ -31,7 +40,10 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { createdAt: "desc" },
   });
-  return jsonOk({ locations });
+  return jsonOk({
+    locations,
+    locationTypeLabels: LOCATION_TYPE_LABELS,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -43,6 +55,11 @@ export async function POST(req: NextRequest) {
   if (!body?.name || body.lat == null || body.lng == null || !body.locationType) {
     return jsonError("Thiếu name / lat / lng / locationType");
   }
+  if (!VALID_LOCATION_TYPES.has(body.locationType)) {
+    return jsonError(
+      `locationType không hợp lệ. Hỗ trợ: ${Array.from(VALID_LOCATION_TYPES).join(", ")}`,
+    );
+  }
   if (!body.address?.trim()) {
     return jsonError("Thiếu địa chỉ");
   }
@@ -50,8 +67,7 @@ export async function POST(req: NextRequest) {
     return jsonError("Thiếu tình trạng hoạt động");
   }
 
-  const needsLicense =
-    body.locationType === "cultural_site" || body.locationType === "religious_site";
+  const needsLicense = requiresLicenseDocs(body.locationType);
   if (needsLicense) {
     if (!body.licenseNumber?.trim()) {
       return jsonError("Địa điểm văn hóa / tín ngưỡng bắt buộc có số giấy phép / văn bản");
@@ -107,5 +123,11 @@ export async function POST(req: NextRequest) {
     include: { media: true, org: true },
   });
 
-  return jsonOk({ location }, { status: 201 });
+  return jsonOk(
+    {
+      location,
+      locationTypeLabel: LOCATION_TYPE_LABELS[location.locationType],
+    },
+    { status: 201 },
+  );
 }

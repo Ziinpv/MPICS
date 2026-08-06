@@ -24,14 +24,15 @@ export async function GET() {
     orgId: user.orgId,
     orgPath: user.org.path,
     orgName: user.org.name,
+    mustChangePassword: user.mustChangePassword,
   };
 
-  // Đồng bộ cookie nếu seed/DB đã đổi org (tránh dropdown lệch)
   if (
     session.orgId !== fresh.orgId ||
     session.orgName !== fresh.orgName ||
     session.fullName !== fresh.fullName ||
-    session.orgPath !== fresh.orgPath
+    session.orgPath !== fresh.orgPath ||
+    Boolean(session.mustChangePassword) !== fresh.mustChangePassword
   ) {
     const token = await signToken(fresh);
     await setAuthCookie(token);

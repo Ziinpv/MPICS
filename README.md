@@ -1,5 +1,8 @@
 # MPCIS Demo — Hướng dẫn chạy
 
+> **Trạng thái (6 Aug 2026):** Demo MVP **thành công** (Path A + Path B + TTVH P1–P3).  
+> Lộ trình đưa ra thực tế: [`docs/04_TienDo_Va_Roadmap_SanXuat.md`](docs/04_TienDo_Va_Roadmap_SanXuat.md).
+
 Demo MVP theo [`docs/03_Plan_MVP_Demo.md`](docs/03_Plan_MVP_Demo.md).
 
 ## Yêu cầu
@@ -7,6 +10,8 @@ Demo MVP theo [`docs/03_Plan_MVP_Demo.md`](docs/03_Plan_MVP_Demo.md).
 - Node.js 20+
 - Docker Desktop (PostgreSQL)
 - npm
+
+> **Windows PowerShell:** nếu gặp lỗi Execution Policy với `npm.ps1`, dùng `npm.cmd` (ví dụ `npm.cmd run dev`).
 
 ## Chạy lần đầu
 
@@ -44,14 +49,19 @@ Mở http://localhost:3000
 1. Login `user.xa1`
 2. **Bản đồ tra cứu** — xem marker địa điểm seed
 3. **Thêm địa điểm** — form + pick GPS + upload ảnh → Lưu
-4. Danh sách / map — thấy địa điểm mới
+4. **Danh sách** — icon sửa → chỉnh sửa địa điểm
 
 ### Path B — Admin phát sóng
 1. Login `admin`
 2. **Nội dung** — tạo bài → Duyệt (`ready_to_air`)
 3. **Lịch phát** — chọn bài + cụm → Publish
 4. Terminal: `npm run sim` (trong `apps/web`) — heartbeat + ack `play`
-5. **Dashboard** — lệnh gần đây `acked`
+5. **Dashboard IoT** (`/admin/iot`) — lệnh gần đây `acked`
+
+### Admin TTVH-like (đã có)
+- Overview map/KPI, biểu đồ, list VH / TTTM / tín ngưỡng
+- Danh mục Tỉnh / Xã / **CRUD loại ĐĐ**
+- **Quản lý user**, **Xuất CSV** báo cáo địa điểm
 
 ### Báo sự cố
 - User: **Báo sự cố** → Admin: **Sự cố** → Resolve
@@ -80,6 +90,14 @@ DATABASE_URL=postgresql://mpcis:mpcis@127.0.0.1:5433/mpcis?schema=public
 JWT_SECRET=mpcis-demo-secret-change-me
 ```
 
-> Port **5433** tránh xung đột Postgres local trên 5432.
-# MPICS
-# MPICS
+> Port **5433** tránh xung đột Postgres local trên 5432.  
+> Trên staging/prod: **đổi** `JWT_SECRET` và mật khẩu DB — xem [`docs/04_TienDo_Va_Roadmap_SanXuat.md`](docs/04_TienDo_Va_Roadmap_SanXuat.md) (P0).
+
+## P0 Hardening (đã có)
+
+- Đổi mật khẩu: header **Đổi MK** hoặc `/account/password` (bắt buộc sau tạo user / reset)
+- Rate-limit login · JWT expiry (`JWT_EXPIRES_IN`) · AuditLog
+- Health: `GET /api/health`
+- Backup: `npm.cmd run db:backup` (hoặc `scripts/backup-db.ps1`)
+- Staging env mẫu: `apps/web/.env.staging.example`
+

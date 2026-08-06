@@ -1,57 +1,84 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageHeader, Stat, Card } from "@/components/ui";
+import MapView, { MapMarker } from "@/components/MapView";
+import { Card, Stat } from "@/components/ui";
+import { LOCATION_TYPE_LABELS, OPERATION_STATUS_LABELS } from "@/lib/labels";
+import { ResultsPanel } from "@/components/SearchResults";
+import { TypeBadge } from "@/components/DeviceTypeSelect";
 
-export default function AdminDashboard() {
+export default function AdminOverviewPage() {
   const [stats, setStats] = useState<any>(null);
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
 
   useEffect(() => {
     fetch("/api/stats")
       .then((r) => r.json())
       .then(setStats);
+
+    fetch("/api/locations/map")
+      .then((r) => r.json())
+      .then((geo) => {
+        setMarkers(
+          (geo.features || []).map((f: any) => ({
+            id: f.properties.id,
+            lat: f.geometry.coordinates[1],
+            lng: f.geometry.coordinates[0],
+            label: f.properties.name,
+            type: f.properties.locationType,
+            popup: `${f.properties.locationTypeLabel || ""} · ${
+              OPERATION_STATUS_LABELS[f.properties.operationStatus] || ""
+            }`,
+          })),
+        );
+      });
   }, []);
 
   return (
     <div>
-      <PageHeader title="Dashboard" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Thiết bị online" value={stats ? `${stats.devicesOnline}/${stats.devicesTotal}` : "…"} />
-        <Stat label="Địa điểm GIS" value={stats?.locationsCount ?? "…"} />
-        <Stat label="Lịch hôm nay" value={stats?.schedulesToday ?? "…"} />
-        <Stat label="Sự cố mở" value={stats?.incidentsOpen ?? "…"} />
+      <div className="mb-4 grid gap-4 sm:grid-cols-3">
+        <Stat label="Địa điểm" value={stats?.locationsCount ?? "…"} accent="brand" />
+        <Stat label="Hình ảnh" value={stats?.mediaCount ?? "…"} accent="danger" />
+        <Stat label="Loại địa điểm" value={stats?.locationTypesCount ?? "…"} accent="accent" />
       </div>
 
-      <Card className="mt-6">
-        <h2 className="mb-3 font-medium">Lệnh thiết bị gần đây</h2>
+      <Card className="mb-4 overflow-hidden p-2 sm:p-3">
+        <MapView markers={markers} height="520px" zoom={11} center={[12.004, 108.42]} />
+      </Card>
+
+      <ResultsPanel
+        title="Danh sách địa điểm mới nhất"
+        count={stats?.recentLocations?.length || 0}
+        empty={!stats?.recentLocations?.length}
+      >
         <table>
           <thead>
             <tr>
-              <th>Thiết bị</th>
-              <th>Lệnh</th>
-              <th>Trạng thái</th>
-              <th>Thời gian</th>
+              <th>Tên địa điểm</th>
+              <th>Phường/Xã</th>
+              <th>Phân loại</th>
+              <th>Ngày thêm</th>
             </tr>
           </thead>
           <tbody>
-            {(stats?.recentCommands || []).map((c: any) => (
-              <tr key={c.id}>
-                <td>{c.device?.name}</td>
-                <td>{c.commandType}</td>
-                <td>{c.status}</td>
-                <td>{new Date(c.createdAt).toLocaleString("vi-VN")}</td>
-              </tr>
-            ))}
-            {!stats?.recentCommands?.length && (
-              <tr>
-                <td colSpan={4} className="text-slate-400">
-                  Chưa có lệnh — publish lịch hoặc chạy simulator
+            {(stats?.recentLocations || []).map((l: any) => (
+              <tr key={l.id}>
+                <td className="font-medium text-brand-800">{l.name}</td>
+                <td>{l.orgName}</td>
+                <td>
+                  <TypeBadge
+                    type={l.locationType}
+                    label={LOCATION_TYPE_LABELS[l.locationType] || l.locationType}
+                  />
+                </td>
+                <td className="text-slate-500">
+                  {new Date(l.createdAt).toLocaleDateString("vi-VN")}
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
-      </Card>
+      </ResultsPanel>
     </div>
   );
 }

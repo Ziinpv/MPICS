@@ -20,6 +20,9 @@ export type MapMarker = {
   label: string;
   color?: string;
   popup?: string;
+  /** DeviceType / LocationType — dùng custom Leaflet icon */
+  type?: string;
+  online?: boolean;
 };
 
 type Props = {

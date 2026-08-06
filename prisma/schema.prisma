@@ -19,9 +19,11 @@ enum UserRole {
   USER
 }
 
+/// Phân loại thiết bị IoT / truyền thông ngoài trời
 enum DeviceType {
-  smart_speaker
-  led_screen
+  communication_device /// Thiết bị truyền thông thông minh (ex: loa thông minh)
+  billboard            /// Bảng hiệu / digital sign
+  wind_banner          /// Bạt gió / banner
 }
 
 enum DeviceStatus {
@@ -30,11 +32,13 @@ enum DeviceStatus {
   retired
 }
 
+/// Phân loại địa điểm / tài sản GIS (gồm tài sản văn hóa + loại thiết bị ngoài trời)
 enum LocationType {
   cultural_site
   religious_site
-  signboard
-  smart_device
+  communication_device /// Thiết bị truyền thông thông minh
+  billboard            /// Bảng hiệu
+  wind_banner          /// Bạt gió
 }
 
 enum OperationStatus {
@@ -148,6 +152,8 @@ model User {
   orgId        String
   org          Organization @relation(fields: [orgId], references: [id])
   status       String   @default("active")
+  mustChangePassword Boolean @default(false)
+  passwordChangedAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -157,6 +163,22 @@ model User {
   incidents       IncidentReport[] @relation("Reporter")
   assignedIncidents IncidentReport[] @relation("Assignee")
   schedules       BroadcastSchedule[]
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorId       String?
+  actorUsername String?
+  action        String
+  entityType    String?
+  entityId      String?
+  meta          Json?
+  ip            String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actorId])
 }
 
 model DeviceCluster {
@@ -182,7 +204,7 @@ model Device {
   cluster         DeviceCluster? @relation(fields: [clusterId], references: [id])
   deviceCode      String       @unique
   name            String
-  type            DeviceType   @default(smart_speaker)
+  type            DeviceType   @default(communication_device)
   lat             Float?
   lng             Float?
   address         String?
@@ -227,6 +249,21 @@ model Location {
   updatedAt          DateTime        @updatedAt
 
   media LocationMedia[]
+}
+
+/// Catalog chi tiết loại địa điểm (CRUD Admin)
+model LocationTypeDef {
+  id        String       @id @default(cuid())
+  groupType LocationType
+  code      String
+  name      String
+  active    Boolean      @default(true)
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([groupType, code])
+  @@index([groupType, active])
 }
 
 model LocationMedia {

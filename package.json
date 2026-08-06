@@ -7,8 +7,10 @@
     "db:up": "docker compose up -d",
     "db:generate": "npm --prefix apps/web run db:generate",
     "db:push": "npm --prefix apps/web run db:push",
+    "db:migrate": "npm --prefix apps/web run db:migrate",
     "db:seed": "npm --prefix apps/web run db:seed",
-    "db:setup": "npm run db:up && sleep 5 && npm run db:generate && npm run db:push && npm run db:seed",
+    "db:setup": "npm run db:up && sleep 5 && npm run db:generate && npm run db:migrate && npm run db:seed",
+    "db:backup": "powershell -ExecutionPolicy Bypass -File ./scripts/backup-db.ps1",
     "sim": "npm --prefix apps/web run sim"
   }
 }

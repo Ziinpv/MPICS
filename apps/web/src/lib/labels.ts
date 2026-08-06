@@ -1,8 +1,35 @@
 export const LOCATION_TYPE_LABELS: Record<string, string> = {
   cultural_site: "Địa điểm văn hóa",
   religious_site: "Cơ sở tín ngưỡng",
-  signboard: "Biển hiệu / bảng / bạt",
-  smart_device: "Thiết bị thông minh",
+  communication_device: "Thiết bị truyền thông thông minh",
+  billboard: "Bảng hiệu",
+  wind_banner: "Bạt gió",
+};
+
+/** Loại thiết bị ngoài trời (subset của LocationType / DeviceType) */
+export const DEVICE_TYPE_LABELS: Record<string, string> = {
+  communication_device: "Thiết bị truyền thông thông minh",
+  billboard: "Bảng hiệu",
+  wind_banner: "Bạt gió",
+};
+
+export const DEVICE_TYPE_OPTIONS = Object.entries(DEVICE_TYPE_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+export const LOCATION_TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+/** Màu / nhãn ngắn cho marker map & badge (không dùng emoji) */
+export const LOCATION_TYPE_VISUAL: Record<string, { short: string; color: string }> = {
+  cultural_site: { short: "VH", color: "#0f5839" },
+  religious_site: { short: "TN", color: "#b74106" },
+  communication_device: { short: "TT", color: "#146f47" },
+  billboard: { short: "BH", color: "#dd6102" },
+  wind_banner: { short: "BG", color: "#0ea5e9" },
 };
 
 /** Loại cần hồ sơ giấy phép / văn bản liên quan */
@@ -25,15 +52,20 @@ export const LOCATION_SUBTYPES_BY_TYPE: Record<string, { value: string; label: s
     { value: "den", label: "Đền / miếu" },
     { value: "other", label: "Khác" },
   ],
-  signboard: [
-    { value: "bang_vay", label: "Bảng vẫy" },
-    { value: "bang_2_chan", label: "Bảng 2 chân" },
-    { value: "bat_mai_che", label: "Bạt mái che" },
+  communication_device: [
+    { value: "truyen_thanh_thong_minh", label: "Truyền thanh thông minh" },
     { value: "other", label: "Khác" },
   ],
-  smart_device: [
-    { value: "loa", label: "Loa thông minh" },
-    { value: "led", label: "Màn hình LED" },
+  billboard: [
+    { value: "bang_vay", label: "Bảng vẫy" },
+    { value: "bang_2_chan", label: "Bảng 2 chân" },
+    { value: "digital_sign", label: "Bảng điện tử / LED" },
+    { value: "other", label: "Khác" },
+  ],
+  wind_banner: [
+    { value: "bat_gio", label: "Bạt gió đứng" },
+    { value: "bat_mai_che", label: "Bạt mái che" },
+    { value: "banner_ngang", label: "Banner ngang" },
     { value: "other", label: "Khác" },
   ],
 };
