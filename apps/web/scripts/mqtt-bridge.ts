@@ -31,12 +31,16 @@ type PendingCmd = {
 };
 
 async function httpJson(path: string, init?: RequestInit) {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-  });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  } catch (e: any) {
+    return { ok: false, status: 0, data: { error: e?.message || "fetch failed" } };
+  }
 }
 
 async function handleHeartbeat(deviceCode: string, raw: string) {
@@ -145,10 +149,18 @@ client.on("message", (topic, buf) => {
 client.on("error", (err) => console.error("[bridge] error", err.message));
 
 setInterval(() => {
-  if (client.connected) void pushPendingCommands(client);
+  if (client.connected) {
+    void pushPendingCommands(client).catch((e) =>
+      console.error("[bridge] poll", e?.message || e),
+    );
+  }
 }, POLL_MS);
 
 // first push soon
 setTimeout(() => {
-  if (client.connected) void pushPendingCommands(client);
+  if (client.connected) {
+    void pushPendingCommands(client).catch((e) =>
+      console.error("[bridge] poll", e?.message || e),
+    );
+  }
 }, 1500);

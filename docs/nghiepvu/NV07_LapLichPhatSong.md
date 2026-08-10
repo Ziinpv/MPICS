@@ -61,7 +61,8 @@ Khi emergency chạy: gửi `stop` lịch thường trên cùng device → phát
 `campaigns`, `broadcast_schedules`, `broadcast_items`, `schedule_targets`, `device_commands`, Mongo `device_play_logs`
 
 ## 9. Tiêu chí chấp nhận
-- [ ] Lịch định kỳ tạo đúng các lần chạy.
-- [ ] Emergency preempt lịch đang phát.
+- [x] Lịch định kỳ + khung giờ trong ngày (`windowStartMin`/`windowEndMin`).
+- [x] Emergency preempt (stop play pending/sent + lệnh `stop`).
+- [x] Calendar tuần trên `/admin/schedules`.
 - [ ] Device từ chối file không đúng chữ ký.
 - [ ] Play log ghi nhận ok/error theo thiết bị.

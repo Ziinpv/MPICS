@@ -65,7 +65,7 @@ Anti-storm: gom alert theo org trong cửa sổ thời gian (debounce).
 - Internal: MQTT subscribe `.../telemetry`
 
 ## 8. Tiêu chí chấp nhận
-- [ ] Offline detect đúng sau ~3 chu kỳ.
-- [ ] Alert tạo 1 lần (không spam) cho đến khi recover/ack.
+- [x] Offline detect sau `DEVICE_OFFLINE_MINUTES` (mặc định 15) qua `jobs:run` / cron tick.
+- [x] Alert tạo 1 lần (không spam) cho đến khi recover/ack/resolve — hiện trên `/admin/iot`.
 - [ ] ZNS/SMS gửi đúng kỹ thuật viên phụ trách org.
-- [ ] Recover online → đóng hoặc auto-resolve alert theo policy.
+- [x] Recover online → auto-resolve alert offline.

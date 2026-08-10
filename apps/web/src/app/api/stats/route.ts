@@ -34,6 +34,8 @@ export async function GET() {
     recentLocations,
     commandGroup,
     commandsToday,
+    alertsOpen,
+    recentAlerts,
   ] = await Promise.all([
     prisma.device.count({ where: { online: true, ...deviceWhere } }),
     prisma.device.count({ where: deviceWhere }),
@@ -71,6 +73,20 @@ export async function GET() {
     }),
     prisma.deviceCommand.count({
       where: { ...commandWhere, createdAt: { gte: dayStart } },
+    }),
+    prisma.deviceAlert.count({
+      where: {
+        status: "open",
+        device: deviceWhere,
+      },
+    }),
+    prisma.deviceAlert.findMany({
+      where: { device: deviceWhere, status: { in: ["open", "acked"] } },
+      take: 20,
+      orderBy: { createdAt: "desc" },
+      include: {
+        device: { select: { name: true, deviceCode: true, online: true, lastSeenAt: true } },
+      },
     }),
   ]);
 
@@ -112,6 +128,9 @@ export async function GET() {
     recentCommands,
     commandCounts,
     commandsToday,
+    alertsOpen,
+    recentAlerts,
+    offlineMinutes: Number(process.env.DEVICE_OFFLINE_MINUTES || 15),
     byType,
     locationsByMonth: months,
     recentLocations: recentLocations.map((l) => ({

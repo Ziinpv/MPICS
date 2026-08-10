@@ -43,24 +43,25 @@ export default function AdminContentsPage() {
     }
     setTitle("");
     setBodyPlain("");
-    setMsg("Đã tạo nháp");
+    setMsg("Đã tạo nháp — gửi duyệt trước khi TTS");
     load();
   }
 
-  async function moderate(id: string, action: string) {
+  async function moderate(id: string, action: string, extra?: Record<string, unknown>) {
     setBusyId(id);
-    setMsg(
-      action === "approve"
-        ? "Đang duyệt + TTS…"
-        : action === "retry_tts"
-          ? "Đang retry TTS…"
-          : "",
-    );
+    const labels: Record<string, string> = {
+      submit: "Đang gửi duyệt…",
+      approve: "Đang duyệt nội dung…",
+      reject: "Đang từ chối…",
+      run_tts: "Đang chạy TTS…",
+      retry_tts: "Đang retry TTS…",
+    };
+    setMsg(labels[action] || "");
     try {
       const res = await fetch(`/api/contents/${id}/moderate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, voice }),
+        body: JSON.stringify({ action, voice, ...extra }),
       });
       const data = await res.json();
       if (!res.ok) setMsg(data.error);
@@ -74,8 +75,26 @@ export default function AdminContentsPage() {
     }
   }
 
+  async function rejectWithReason(id: string) {
+    const reason = window.prompt("Lý do từ chối (bắt buộc):");
+    if (reason == null) return;
+    if (!reason.trim()) {
+      setMsg("Cần lý do từ chối");
+      return;
+    }
+    await moderate(id, "reject", { reason: reason.trim() });
+  }
+
+  function canSubmit(status: string) {
+    return status === "draft" || status === "rejected";
+  }
+
   function canApprove(status: string) {
-    return status === "draft" || status === "pending" || status === "approved";
+    return status === "draft" || status === "pending";
+  }
+
+  function canRunTts(status: string) {
+    return status === "approved" || status === "tts_processing";
   }
 
   function canRetry(c: any) {
@@ -90,7 +109,7 @@ export default function AdminContentsPage() {
     <div>
       <PageHeader
         title="Nội dung phát thanh"
-        subtitle="Duyệt → TTS → nghe thử · Retry đổi giọng / tạo lại MP3"
+        subtitle="Nháp → chờ duyệt → duyệt → TTS → nghe thử · Ghi người duyệt + lý do từ chối"
       />
       {msg && <p className="mb-3 text-sm text-teal-700">{msg}</p>}
 
@@ -102,7 +121,7 @@ export default function AdminContentsPage() {
             <input value={title} onChange={(e) => setTitle(e.target.value)} required />
           </div>
           <div>
-            <label>Nội dung (text → TTS khi duyệt)</label>
+            <label>Nội dung (text → TTS sau khi duyệt)</label>
             <textarea
               rows={4}
               value={bodyPlain}
@@ -130,6 +149,7 @@ export default function AdminContentsPage() {
             <tr>
               <th>Tiêu đề</th>
               <th>Trạng thái</th>
+              <th>Duyệt / từ chối</th>
               <th>Nghe thử</th>
               <th>TTS job</th>
               <th>Tác giả</th>
@@ -156,6 +176,25 @@ export default function AdminContentsPage() {
                     {c.mediaAsset?.durationSec ? (
                       <div className="mt-1 text-[10px] text-slate-400">
                         ~{c.mediaAsset.durationSec}s · {c.mediaAsset.mimeType || "audio"}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="max-w-[200px] text-xs text-slate-600">
+                    {c.reviewedBy?.fullName ? (
+                      <div>
+                        <div>{c.reviewedBy.fullName}</div>
+                        {c.reviewedAt ? (
+                          <div className="text-[10px] text-slate-400">
+                            {new Date(c.reviewedAt).toLocaleString("vi-VN")}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                    {c.rejectionReason ? (
+                      <div className="mt-1 text-rose-600" title={c.rejectionReason}>
+                        Từ chối: {c.rejectionReason}
                       </div>
                     ) : null}
                   </td>
@@ -213,24 +252,38 @@ export default function AdminContentsPage() {
                   </td>
                   <td>{c.author?.fullName}</td>
                   <td className="space-x-1 whitespace-nowrap">
+                    {canSubmit(c.status) && (
+                      <Btn
+                        variant="secondary"
+                        disabled={busyId === c.id}
+                        onClick={() => moderate(c.id, "submit")}
+                      >
+                        Gửi duyệt
+                      </Btn>
+                    )}
                     {canApprove(c.status) && (
                       <>
-                        <Btn
-                          disabled={busyId === c.id}
-                          onClick={() => moderate(c.id, "approve")}
-                        >
-                          {busyId === c.id ? "…" : "Duyệt + TTS"}
+                        <Btn disabled={busyId === c.id} onClick={() => moderate(c.id, "approve")}>
+                          {busyId === c.id ? "…" : "Duyệt"}
                         </Btn>
                         <Btn
                           variant="danger"
                           disabled={busyId === c.id}
-                          onClick={() => moderate(c.id, "reject")}
+                          onClick={() => rejectWithReason(c.id)}
                         >
                           Từ chối
                         </Btn>
                       </>
                     )}
-                    {canRetry(c) && (
+                    {canRunTts(c.status) && (
+                      <Btn
+                        disabled={busyId === c.id}
+                        onClick={() => moderate(c.id, "run_tts")}
+                      >
+                        {busyId === c.id ? "…" : "Chạy TTS"}
+                      </Btn>
+                    )}
+                    {canRetry(c) && c.status === "ready_to_air" && (
                       <Btn
                         variant="secondary"
                         disabled={busyId === c.id}
@@ -245,7 +298,7 @@ export default function AdminContentsPage() {
             })}
             {!contents.length && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-400">
+                <td colSpan={7} className="py-8 text-center text-slate-400">
                   Chưa có nội dung
                 </td>
               </tr>

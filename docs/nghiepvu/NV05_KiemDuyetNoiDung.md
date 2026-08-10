@@ -66,6 +66,7 @@ Categories: `heritage`, `festival`, `admin_notice`, `emergency`, `other` + free 
 - Không phát sóng trực tiếp từ bước này — phải qua NV06/NV07.
 
 ## 9. Tiêu chí chấp nhận
-- [ ] Admin tạo và duyệt bài → `ready_to_air` (hoặc TTS) thành công.
+- [x] Admin tạo → submit/approve → `approved` (tách TTS) → `run_tts` → `ready_to_air`.
+- [x] Reject bắt buộc `reason`; ghi `reviewedBy` + `ModerationReview`.
 - [ ] User Commune gọi `POST /contents` → 403.
-- [ ] Mọi action có `moderation_reviews` + audit.
+- [x] Mọi action duyệt có `moderation_reviews` + audit.

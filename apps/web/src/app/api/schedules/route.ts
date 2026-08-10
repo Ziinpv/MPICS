@@ -5,6 +5,24 @@ import { canManageSchedule } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
 import { CampaignType } from "@prisma/client";
 
+function parseTimeToMinutes(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    const n = Math.floor(v);
+    if (n < 0 || n > 1439) return null;
+    return n;
+  }
+  if (typeof v === "string") {
+    const m = v.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h > 23 || min > 59) return null;
+    return h * 60 + min;
+  }
+  return null;
+}
+
 export async function GET() {
   const user = await getSession();
   if (!user) return jsonError("Unauthorized", 401);
@@ -39,13 +57,24 @@ export async function POST(req: NextRequest) {
     return jsonError("Content phải ở trạng thái ready_to_air");
   }
 
+  const emergency = Boolean(body.emergency || body.preempt);
   const intervalMinutes =
-    body.intervalMinutes != null && Number(body.intervalMinutes) > 0
+    !emergency && body.intervalMinutes != null && Number(body.intervalMinutes) > 0
       ? Number(body.intervalMinutes)
       : null;
-  const type: CampaignType = intervalMinutes ? CampaignType.periodic : CampaignType.oneshot;
+
+  let type: CampaignType = CampaignType.oneshot;
+  if (emergency) type = CampaignType.emergency;
+  else if (intervalMinutes) type = CampaignType.periodic;
+
   const startAt = body.startAt ? new Date(body.startAt) : new Date();
   const endAt = body.endAt ? new Date(body.endAt) : null;
+  const windowStartMin = parseTimeToMinutes(body.windowStart ?? body.windowStartMin);
+  const windowEndMin = parseTimeToMinutes(body.windowEnd ?? body.windowEndMin);
+
+  if ((windowStartMin == null) !== (windowEndMin == null)) {
+    return jsonError("Cần cả windowStart và windowEnd (HH:MM) hoặc để trống");
+  }
 
   const campaign = await prisma.campaign.create({
     data: {
@@ -63,6 +92,9 @@ export async function POST(req: NextRequest) {
       intervalMinutes,
       nextRunAt: intervalMinutes ? startAt : null,
       endAt,
+      windowStartMin,
+      windowEndMin,
+      preempt: emergency || Boolean(body.preempt),
       createdById: user.id,
       status: "scheduled",
       items: {

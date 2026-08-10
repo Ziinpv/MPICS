@@ -1,9 +1,81 @@
 import { prisma } from "@/lib/prisma";
 
+/** Phút trong ngày theo timezone Asia/Ho_Chi_Minh (UTC+7 cố định, đủ cho local/demo) */
+export function minutesOfDay(date = new Date(), timezone = "Asia/Ho_Chi_Minh"): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+    const hour = Number(parts.find((p) => p.type === "hour")?.value || 0);
+    const minute = Number(parts.find((p) => p.type === "minute")?.value || 0);
+    return hour * 60 + minute;
+  } catch {
+    return date.getHours() * 60 + date.getMinutes();
+  }
+}
+
+/** Trong khung giờ phát? Null window = cả ngày. Hỗ trợ cửa sổ qua nửa đêm (start > end). */
+export function isWithinDailyWindow(
+  now: Date,
+  windowStartMin: number | null | undefined,
+  windowEndMin: number | null | undefined,
+  timezone = "Asia/Ho_Chi_Minh",
+): boolean {
+  if (windowStartMin == null || windowEndMin == null) return true;
+  const m = minutesOfDay(now, timezone);
+  if (windowStartMin === windowEndMin) return true;
+  if (windowStartMin < windowEndMin) {
+    return m >= windowStartMin && m < windowEndMin;
+  }
+  return m >= windowStartMin || m < windowEndMin;
+}
+
+/** Emergency preempt: dừng lệnh play đang chờ/đang gửi trên cùng device */
+async function preemptLowerPriority(deviceIds: string[], emergencyScheduleId: string) {
+  if (!deviceIds.length) return { stopped: 0 };
+  const stale = await prisma.deviceCommand.findMany({
+    where: {
+      deviceId: { in: deviceIds },
+      commandType: "play",
+      status: { in: ["pending", "sent"] },
+      OR: [{ scheduleId: null }, { scheduleId: { not: emergencyScheduleId } }],
+    },
+    select: { id: true, deviceId: true },
+  });
+  if (!stale.length) return { stopped: 0 };
+
+  await prisma.deviceCommand.updateMany({
+    where: { id: { in: stale.map((c) => c.id) } },
+    data: { status: "failed" },
+  });
+
+  const uniqueDevices = [...new Set(stale.map((c) => c.deviceId))];
+  await Promise.all(
+    uniqueDevices.map((deviceId) =>
+      prisma.deviceCommand.create({
+        data: {
+          deviceId,
+          commandType: "stop",
+          payload: { reason: "emergency_preempt", byScheduleId: emergencyScheduleId },
+          status: "pending",
+          scheduleId: emergencyScheduleId,
+        },
+      }),
+    ),
+  );
+
+  return { stopped: stale.length };
+}
+
 /** Tạo lệnh play cho mọi device active trong target clusters của lịch */
 export async function publishScheduleCommands(input: {
   scheduleId: string;
   issuedById?: string | null;
+  /** Bỏ qua kiểm tra khung giờ (publish thủ công vẫn có thể force) */
+  forceWindow?: boolean;
 }) {
   const schedule = await prisma.broadcastSchedule.findUnique({
     where: { id: input.scheduleId },
@@ -15,10 +87,29 @@ export async function publishScheduleCommands(input: {
   });
   if (!schedule) throw new Error("Schedule not found");
 
+  const now = new Date();
+  if (
+    !input.forceWindow &&
+    !isWithinDailyWindow(now, schedule.windowStartMin, schedule.windowEndMin, schedule.timezone)
+  ) {
+    throw new Error(
+      `Ngoài khung giờ phát (${fmtMin(schedule.windowStartMin)}–${fmtMin(schedule.windowEndMin)})`,
+    );
+  }
+
   const includeClusterIds = schedule.targets.filter((t) => t.include).map((t) => t.clusterId);
   const devices = await prisma.device.findMany({
     where: { clusterId: { in: includeClusterIds }, status: "active" },
   });
+
+  const isEmergency = schedule.campaign.type === "emergency" || schedule.preempt;
+  let preempted = { stopped: 0 };
+  if (isEmergency) {
+    preempted = await preemptLowerPriority(
+      devices.map((d) => d.id),
+      schedule.id,
+    );
+  }
 
   const item = schedule.items[0];
   const commands = await Promise.all(
@@ -32,6 +123,8 @@ export async function publishScheduleCommands(input: {
             mediaUrl: item?.mediaAsset?.cdnUrl,
             signature: item?.mediaAsset?.signature,
             title: item?.content?.title,
+            preempt: isEmergency,
+            priority: isEmergency ? "emergency" : "normal",
           },
           issuedById: input.issuedById || schedule.createdById || undefined,
           status: "pending",
@@ -67,10 +160,18 @@ export async function publishScheduleCommands(input: {
     commandsCreated: commands.length,
     isPeriodic,
     nextRunAt,
+    preempted: preempted.stopped,
   };
 }
 
-/** Chạy các lịch periodic đến hạn */
+function fmtMin(m: number | null | undefined) {
+  if (m == null) return "—";
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/** Chạy các lịch periodic đến hạn (có kiểm tra khung giờ) */
 export async function runDuePeriodicSchedules() {
   const now = new Date();
   const due = await prisma.broadcastSchedule.findMany({
@@ -97,6 +198,15 @@ export async function runDuePeriodicSchedules() {
   const results = [];
   for (const s of due) {
     if (!s.intervalMinutes) continue;
+    if (!isWithinDailyWindow(now, s.windowStartMin, s.windowEndMin, s.timezone)) {
+      results.push({
+        scheduleId: s.id,
+        name: s.name,
+        skipped: "outside_window",
+        commandsCreated: 0,
+      });
+      continue;
+    }
     const r = await publishScheduleCommands({
       scheduleId: s.id,
       issuedById: s.createdById,
@@ -106,6 +216,7 @@ export async function runDuePeriodicSchedules() {
       name: s.name,
       commandsCreated: r.commandsCreated,
       nextRunAt: r.nextRunAt,
+      preempted: r.preempted,
     });
   }
   return results;

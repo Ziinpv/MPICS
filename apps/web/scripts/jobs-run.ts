@@ -3,11 +3,15 @@
  * Usage: npm run jobs:run
  */
 import { runDuePeriodicSchedules, timeoutStaleCommands } from "../src/lib/scheduleJobs";
+import { scanDeviceOfflineAlerts } from "../src/lib/telemetryAlerts";
 
 async function main() {
   const timeout = await timeoutStaleCommands();
   const periodic = await runDuePeriodicSchedules();
-  console.log(JSON.stringify({ timeout, periodic, ranAt: new Date().toISOString() }, null, 2));
+  const offline = await scanDeviceOfflineAlerts();
+  console.log(
+    JSON.stringify({ timeout, periodic, offline, ranAt: new Date().toISOString() }, null, 2),
+  );
 }
 
 main()

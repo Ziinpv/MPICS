@@ -166,6 +166,9 @@ model User {
   assignedIncidents IncidentReport[] @relation("Assignee")
   schedules       BroadcastSchedule[]
   passwordResetTokens PasswordResetToken[]
+  moderationReviews   ModerationReview[] @relation("ModerationReviewer")
+  reviewedContents    Content[] @relation("ContentReviewer")
+  resolvedAlerts      DeviceAlert[] @relation("AlertResolver")
 }
 
 model PasswordResetToken {
@@ -240,6 +243,7 @@ model Device {
   commands  DeviceCommand[]
   incidents IncidentReport[]
   linkedLocations Location[]
+  alerts    DeviceAlert[]
 }
 
 model Location {
@@ -308,11 +312,36 @@ model Content {
   status      ContentStatus   @default(draft)
   mediaAssetId String?
   mediaAsset  MediaAsset?     @relation(fields: [mediaAssetId], references: [id])
+  rejectionReason String?
+  reviewedById String?
+  reviewedBy   User?          @relation("ContentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   items   BroadcastItem[]
   ttsJobs TtsJob[]
+  reviews ModerationReview[]
+}
+
+enum ModerationAction {
+  submit
+  approve
+  reject
+  request_revision
+}
+
+model ModerationReview {
+  id         String           @id @default(cuid())
+  contentId  String
+  content    Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User             @relation("ModerationReviewer", fields: [reviewerId], references: [id])
+  action     ModerationAction
+  reason     String?
+  createdAt  DateTime         @default(now())
+
+  @@index([contentId, createdAt])
 }
 
 model MediaAsset {
@@ -379,6 +408,9 @@ model BroadcastSchedule {
   intervalMinutes Int?
   nextRunAt       DateTime?
   endAt           DateTime?
+  /// Khung giờ trong ngày (phút từ 00:00). Null = cả ngày.
+  windowStartMin  Int?
+  windowEndMin    Int?
   timezone        String         @default("Asia/Ho_Chi_Minh")
   preempt         Boolean        @default(false)
   status          ScheduleStatus @default(scheduled)
@@ -391,6 +423,7 @@ model BroadcastSchedule {
   targets ScheduleTarget[]
 
   @@index([nextRunAt])
+  @@index([startAt])
 }
 
 model BroadcastItem {
@@ -445,4 +478,37 @@ model IncidentReport {
   assignee    User?            @relation("Assignee", fields: [assigneeId], references: [id])
   createdAt   DateTime         @default(now())
   resolvedAt  DateTime?
+}
+
+enum DeviceAlertType {
+  offline
+  low_battery
+  storage_full
+  other
+}
+
+enum DeviceAlertStatus {
+  open
+  acked
+  resolved
+}
+
+/// Cảnh báo thiết bị (telemetry) — nền tảng SLA online
+model DeviceAlert {
+  id          String            @id @default(cuid())
+  deviceId    String
+  device      Device            @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  type        DeviceAlertType   @default(offline)
+  severity    IncidentSeverity  @default(high)
+  status      DeviceAlertStatus @default(open)
+  message     String
+  offlineMinutes Int?
+  resolvedById String?
+  resolvedBy  User?             @relation("AlertResolver", fields: [resolvedById], references: [id])
+  resolvedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@index([deviceId, type, status])
 }

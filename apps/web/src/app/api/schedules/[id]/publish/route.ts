@@ -28,6 +28,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         commandsCreated: result.commandsCreated,
         isPeriodic: result.isPeriodic,
         nextRunAt: result.nextRunAt,
+        preempted: result.preempted,
       },
       ip: clientIp(req),
     });
@@ -38,9 +39,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       commands: result.commands,
       isPeriodic: result.isPeriodic,
       nextRunAt: result.nextRunAt,
+      preempted: result.preempted,
     });
   } catch (err: any) {
     if (String(err?.message).includes("not found")) return jsonError("Not found", 404);
-    return jsonError(err?.message || "Publish lỗi", 500);
+    return jsonError(err?.message || "Publish lỗi", 400);
   }
 }

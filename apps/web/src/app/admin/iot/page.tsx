@@ -62,8 +62,23 @@ export default function AdminIotDashboard() {
       return;
     }
     setMsg(
-      `Jobs OK · timeout=${data.timeout?.timedOut ?? 0} · periodic=${data.periodic?.length ?? 0}`,
+      `Jobs OK · timeout=${data.timeout?.timedOut ?? 0} · periodic=${data.periodic?.length ?? 0} · offlineAlerts=${data.offline?.alertsCreated ?? 0}`,
     );
+    load();
+  }
+
+  async function alertAction(id: string, action: "ack" | "resolve") {
+    const res = await fetch(`/api/alerts/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setMsg(data.error || "Alert lỗi");
+      return;
+    }
+    setMsg(action === "ack" ? "Đã ack cảnh báo" : "Đã đóng cảnh báo");
     load();
   }
 
@@ -89,7 +104,7 @@ export default function AdminIotDashboard() {
     <div>
       <PageHeader
         title="Dashboard IoT"
-        subtitle="Giám sát online · lệnh pending/sent/acked/timeout · jobs timeout & lịch định kỳ"
+        subtitle="Online / offline SLA · cảnh báo · lệnh pending/sent/acked/timeout · jobs"
         actions={
           <div className="flex flex-wrap gap-2">
             <Btn variant="secondary" onClick={load} disabled={loading}>
@@ -124,7 +139,11 @@ export default function AdminIotDashboard() {
           label="Thiết bị online"
           value={stats ? `${stats.devicesOnline}/${stats.devicesTotal}` : "…"}
         />
-        <Stat label="Acked (tổng)" value={counts.acked ?? "…"} />
+        <Stat
+          label="Cảnh báo mở"
+          value={stats?.alertsOpen ?? "…"}
+          accent="danger"
+        />
         <Stat label="Timeout (tổng)" value={counts.timeout ?? "…"} accent="danger" />
         <Stat
           label="Pending + Sent"
@@ -133,11 +152,82 @@ export default function AdminIotDashboard() {
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Acked (tổng)" value={counts.acked ?? "…"} />
         <Stat label="Lệnh hôm nay" value={stats?.commandsToday ?? "…"} />
-        <Stat label="Failed" value={counts.failed ?? "…"} accent="danger" />
         <Stat label="Lịch hôm nay" value={stats?.schedulesToday ?? "…"} />
         <Stat label="Sự cố mở" value={stats?.incidentsOpen ?? "…"} accent="danger" />
       </div>
+
+      <Card className="mt-6 overflow-x-auto">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Cảnh báo thiết bị</h2>
+            <p className="text-xs text-slate-500">
+              Offline &gt; {stats?.offlineMinutes ?? 15} phút → tạo alert (SLA online)
+            </p>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Thiết bị</th>
+              <th>Loại</th>
+              <th>Mức</th>
+              <th>Trạng thái</th>
+              <th>Nội dung</th>
+              <th>Tạo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {(stats?.recentAlerts || []).map((a: any) => (
+              <tr key={a.id}>
+                <td className="font-medium">
+                  {a.device?.name}
+                  <div className="font-mono text-[10px] text-slate-400">{a.device?.deviceCode}</div>
+                </td>
+                <td className="text-xs">{a.type}</td>
+                <td className="text-xs">{a.severity}</td>
+                <td>
+                  <StatusIcon
+                    status={a.status === "open" ? "error" : a.status === "acked" ? "inactive" : "active"}
+                    showLabel
+                    label={a.status}
+                    size="inline"
+                  />
+                </td>
+                <td className="max-w-xs text-xs text-slate-600">{a.message}</td>
+                <td className="whitespace-nowrap text-xs text-slate-500">
+                  {new Date(a.createdAt).toLocaleString("vi-VN")}
+                </td>
+                <td className="whitespace-nowrap space-x-1">
+                  {a.status === "open" && (
+                    <Btn
+                      variant="secondary"
+                      className="!px-2 !py-1 text-xs"
+                      onClick={() => alertAction(a.id, "ack")}
+                    >
+                      Ack
+                    </Btn>
+                  )}
+                  {a.status !== "resolved" && (
+                    <Btn className="!px-2 !py-1 text-xs" onClick={() => alertAction(a.id, "resolve")}>
+                      Đóng
+                    </Btn>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {!stats?.recentAlerts?.length && (
+              <tr>
+                <td colSpan={7} className="py-6 text-center text-slate-400">
+                  Không có cảnh báo mở — chạy jobs để quét offline
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Card>
 
       <Card className="mt-6 overflow-x-auto">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

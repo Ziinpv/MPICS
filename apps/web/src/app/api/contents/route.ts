@@ -14,7 +14,13 @@ export async function GET() {
     where: { org: { path: { startsWith: user.orgPath } } },
     include: {
       author: { select: { fullName: true } },
+      reviewedBy: { select: { fullName: true } },
       mediaAsset: true,
+      reviews: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: { reviewer: { select: { fullName: true } } },
+      },
       ttsJobs: {
         orderBy: { createdAt: "desc" },
         take: 1,

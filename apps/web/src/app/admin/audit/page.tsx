@@ -24,7 +24,12 @@ const ACTION_PRESETS = [
   "user.create",
   "user.update",
   "schedule.publish",
+  "content.approve",
+  "content.reject",
+  "content.run_tts",
   "content.approve_tts",
+  "alert.ack",
+  "alert.resolve",
   "location.update",
   "device.mqtt_rotate",
 ];
