@@ -28,11 +28,13 @@ foreach ($c in $list) {
 }
 [System.IO.File]::WriteAllText($aclHost, ($aclLines -join "`n") + "`n")
 
-docker run --rm -v "${Out}:/out" eclipse-mosquitto:2 sh -c "mosquitto_passwd -b -c /out/passwd $BridgeUser $BridgePass && chmod 0700 /out/passwd"
+docker run --rm -v "${Out}:/out" eclipse-mosquitto:2 sh -c "mosquitto_passwd -b -c /out/passwd $BridgeUser $BridgePass"
 foreach ($c in $list) {
   $pass = "dev-$c"
-  docker run --rm -v "${Out}:/out" eclipse-mosquitto:2 sh -c "mosquitto_passwd -b /out/passwd $c $pass && chmod 0700 /out/passwd"
+  docker run --rm -v "${Out}:/out" eclipse-mosquitto:2 sh -c "mosquitto_passwd -b /out/passwd $c $pass"
 }
+# Docker Desktop / Windows: mosquitto user cần đọc được file
+docker run --rm -v "${Out}:/out" eclipse-mosquitto:2 chmod 644 /out/passwd /out/acl 2>$null
 
 Write-Host "Wrote $passwdHost and $aclHost"
 Write-Host "Bridge: $BridgeUser / $BridgePass"

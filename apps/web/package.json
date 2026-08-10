@@ -17,7 +17,8 @@
     "mqtt:bridge": "tsx scripts/mqtt-bridge.ts",
     "jobs:run": "tsx --env-file=.env scripts/jobs-run.ts",
     "cron:tick": "tsx --env-file=.env scripts/cron-tick.ts",
-    "tts:worker": "tsx --env-file=.env scripts/tts-worker.ts"
+    "tts:worker": "tsx --env-file=.env scripts/tts-worker.ts",
+    "tts:smoke": "tsx --env-file=.env scripts/tts-smoke.ts"
   },
   "prisma": {
     "schema": "prisma/schema.prisma",

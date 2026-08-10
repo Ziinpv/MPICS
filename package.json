@@ -16,6 +16,7 @@
     "mqtt:bridge": "npm --prefix apps/web run mqtt:bridge",
     "jobs:run": "npm --prefix apps/web run jobs:run",
     "cron:tick": "npm --prefix apps/web run cron:tick",
-    "tts:worker": "npm --prefix apps/web run tts:worker"
+    "tts:worker": "npm --prefix apps/web run tts:worker",
+    "tts:smoke": "npm --prefix apps/web run tts:smoke"
   }
 }

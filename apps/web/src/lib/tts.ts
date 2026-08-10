@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import { existsSync } from "fs";
 import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
@@ -18,9 +19,21 @@ export function ttsVoice() {
   return process.env.TTS_VOICE || "vi-VN-HoaiMyNeural";
 }
 
+function resolvePython(): string {
+  if (process.env.TTS_PYTHON?.trim()) return process.env.TTS_PYTHON.trim();
+  const local = process.env.LOCALAPPDATA || "";
+  const candidates = [
+    path.join(local, "Python", "bin", "python.exe"),
+    path.join(local, "Python", "pythoncore-3.14-64", "python.exe"),
+  ];
+  for (const c of candidates) {
+    if (c.length > 12 && existsSync(c)) return c;
+  }
+  return process.platform === "win32" ? "py" : "python3";
+}
+
 /** MP3 tối thiểu hợp lệ (silent frame) — fallback / CI */
 function minimalMp3(): Buffer {
-  // MPEG frame header + padding — đủ để player/file type nhận audio/mpeg
   const b = Buffer.alloc(128, 0);
   b[0] = 0xff;
   b[1] = 0xfb;
@@ -31,7 +44,8 @@ function minimalMp3(): Buffer {
 
 function runCmd(cmd: string, args: string[], timeoutMs = 120_000): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"], shell: true });
+    const useShell = process.platform === "win32" && (cmd === "py" || !cmd.includes("\\"));
+    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"], shell: useShell });
     let err = "";
     const t = setTimeout(() => {
       child.kill("SIGKILL");
@@ -40,6 +54,7 @@ function runCmd(cmd: string, args: string[], timeoutMs = 120_000): Promise<void>
     child.stderr?.on("data", (d) => {
       err += d.toString();
     });
+    child.stdout?.on("data", () => undefined);
     child.on("error", (e) => {
       clearTimeout(t);
       reject(e);
@@ -52,47 +67,66 @@ function runCmd(cmd: string, args: string[], timeoutMs = 120_000): Promise<void>
   });
 }
 
-/** Sinh MP3 bằng edge-tts CLI (Python). Cần: pip install edge-tts */
+/** Sinh MP3 bằng edge-tts (Python helper — ổn định hơn CLI trên Windows). */
 export async function synthesizeEdgeTts(text: string, voice: string): Promise<Buffer> {
   const dir = await mkdtemp(path.join(tmpdir(), "mpcis-tts-"));
   const textFile = path.join(dir, "in.txt");
   const outFile = path.join(dir, "out.mp3");
+  const helper = path.join(process.cwd(), "scripts", "edge_tts_run.py");
   try {
-    await writeFile(textFile, text, "utf8");
-    const py = process.env.TTS_PYTHON || "python";
-    // edge-tts module entry
-    await runCmd(py, [
-      "-m",
-      "edge_tts",
-      "--voice",
-      voice,
-      "--file",
-      textFile,
-      "--write-media",
-      outFile,
-    ]);
-    return await readFile(outFile);
+    await writeFile(textFile, text.replace(/^\uFEFF/, "").trim() + "\n", "utf8");
+    const py = resolvePython();
+    if (existsSync(helper)) {
+      await runCmd(py, [helper, textFile, voice, outFile]);
+    } else {
+      await runCmd(py, [
+        "-m",
+        "edge_tts",
+        "--voice",
+        voice,
+        "--file",
+        textFile,
+        "--write-media",
+        outFile,
+      ]);
+    }
+    const buf = await readFile(outFile);
+    if (buf.length < 100) throw new Error("edge-tts output too small");
+    return buf;
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => undefined);
   }
 }
 
-export async function synthesizeTts(text: string, voice: string, driver: TtsDriver): Promise<Buffer> {
+export async function synthesizeTts(
+  text: string,
+  voice: string,
+  driver: TtsDriver,
+): Promise<{ audio: Buffer; driver: TtsDriver }> {
   if (driver === "mock") {
     const payload = Buffer.concat([
       minimalMp3(),
       Buffer.from(`\nMPCIS-MOCK-TTS:${createHash("md5").update(text).digest("hex")}\n`),
     ]);
-    return payload;
+    return { audio: payload, driver: "mock" };
   }
   try {
-    return await synthesizeEdgeTts(text, voice);
+    const audio = await synthesizeEdgeTts(text, voice);
+    if (!audio.length) throw new Error("edge-tts empty audio");
+    return { audio, driver: "edge" };
   } catch (e: any) {
-    if (process.env.TTS_FALLBACK_MOCK === "1") {
-      console.warn("[tts] edge failed, fallback mock:", e?.message);
-      return synthesizeTts(text, voice, "mock");
+    // Retry 1 lần (edge đôi khi NoAudioReceived)
+    try {
+      const audio = await synthesizeEdgeTts(text, voice);
+      if (!audio.length) throw new Error("edge-tts empty audio");
+      return { audio, driver: "edge" };
+    } catch (e2: any) {
+      if (process.env.TTS_FALLBACK_MOCK === "1") {
+        console.warn("[tts] edge failed, fallback mock:", e2?.message || e?.message);
+        return synthesizeTts(text, voice, "mock");
+      }
+      throw e2;
     }
-    throw e;
   }
 }
 
@@ -115,9 +149,9 @@ export async function processTtsJob(jobId: string) {
   });
 
   try {
-    const driver = (job.driver === "mock" ? "mock" : ttsDriver()) as TtsDriver;
+    const preferred = (job.driver === "mock" ? "mock" : ttsDriver()) as TtsDriver;
     const voice = job.voice || ttsVoice();
-    const audio = await synthesizeTts(job.content.bodyPlain, voice, driver);
+    const { audio, driver } = await synthesizeTts(job.content.bodyPlain, voice, preferred);
     const checksum = sha256Hex(audio);
     const storageKey = `tts/${job.contentId}/${Date.now()}.mp3`;
     const stored = await putMediaObject({

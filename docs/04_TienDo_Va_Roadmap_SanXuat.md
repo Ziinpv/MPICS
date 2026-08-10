@@ -150,4 +150,5 @@ npm.cmd run dev
 - Nghiệp vụ: [nghiepvu/README.md](./nghiepvu/README.md)
 - Staging: [08_Staging_Deploy.md](./08_Staging_Deploy.md)
 - TTS: [09_TTS_Media_Pipeline.md](./09_TTS_Media_Pipeline.md)
+- Path B local: [10_PathB_Local.md](./10_PathB_Local.md)
 - Canvas: `canvases/mpics-progress-2026-08.canvas.tsx`

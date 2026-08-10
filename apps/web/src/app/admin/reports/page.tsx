@@ -13,8 +13,32 @@ export default function AdminReportsPage() {
     setMsg("");
     const q = new URLSearchParams({ format: "csv" });
     if (locationType) q.set("location_type", locationType);
-    window.location.href = `/api/reports/locations?${q}`;
-    setMsg("Đang tải file CSV…");
+    // Blob download giữ nguyên encoding (tránh một số trình duyệt làm hỏng BOM)
+    void (async () => {
+      try {
+        const res = await fetch(`/api/reports/locations?${q}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setMsg(data.error || "Xuất lỗi");
+          return;
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get("Content-Disposition") || "";
+        const match = /filename="([^"]+)"/.exec(cd);
+        const name = match?.[1] || `bao-cao-dia-diem-${Date.now()}.csv`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setMsg("Đã tải CSV (UTF-16 — mở bằng Excel)");
+      } catch {
+        setMsg("Không tải được file");
+      }
+    })();
   }
 
   return (
@@ -37,8 +61,8 @@ export default function AdminReportsPage() {
             Người tạo, Số ảnh, Lat, Lng
           </p>
           <p className="mt-2 text-xs text-slate-400">
-            File CSV UTF-8, cột tách bằng dấu <strong>;</strong> (chuẩn Excel Việt Nam). Mở trực tiếp bằng
-            Excel — không cần Text Import.
+            File CSV <strong>UTF-16</strong>, cột tách bằng <strong>Tab</strong> — Excel/WPS mở ra đúng
+            tiếng Việt và tách cột (không cần Data → Text to Columns).
           </p>
         </div>
         <Btn onClick={exportCsv}>

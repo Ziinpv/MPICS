@@ -5,18 +5,28 @@ import { jsonError } from "@/lib/api";
 import { LocationType, UserRole } from "@prisma/client";
 import { LOCATION_TYPE_LABELS, OPERATION_STATUS_LABELS } from "@/lib/labels";
 
-/** Excel locale VN dùng `;` làm delimiter (dấu `,` là thập phân). */
-const SEP = ";";
+/**
+ * Tab-separated + UTF-16 LE BOM — Excel/WPS mở double-click tự tách cột + đúng tiếng Việt.
+ * (CSV `;` hay bị dồn 1 cột nếu app bỏ qua sep=; / locale không khớp.)
+ */
+const SEP = "\t";
 
 function csvEscape(v: unknown) {
   const s = v == null ? "" : String(v);
-  if (/[";\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  // Escape tab/newline/quote trong field
+  if (/["\t\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
 
 function formatViDate(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Giữ dấu `.` thập phân; tab delimiter nên Excel không nhầm thousand-separator */
+function formatCoord(n: number, digits = 6) {
+  if (!Number.isFinite(n)) return "";
+  return n.toFixed(digits);
 }
 
 export async function GET(req: NextRequest) {
@@ -78,9 +88,8 @@ export async function GET(req: NextRequest) {
         formatViDate(new Date(l.createdAt)),
         l.createdBy?.fullName || l.createdBy?.username || "",
         l.media.length,
-        // Dấu thập phân `.` — Excel VN vẫn nhận số khi cột tách bằng `;`
-        String(l.lat),
-        String(l.lng),
+        formatCoord(l.lat),
+        formatCoord(l.lng),
       ]
         .map(csvEscape)
         .join(SEP),
@@ -88,12 +97,16 @@ export async function GET(req: NextRequest) {
   });
 
   const filename = `bao-cao-dia-diem${locationType ? `-${locationType}` : ""}-${Date.now()}.csv`;
-  // BOM + sep= giúp Excel nhận đúng delimiter
-  const body = `\uFEFFsep=${SEP}\n` + lines.join("\r\n");
+  const text = lines.join("\r\n");
+  const utf16 = Buffer.from(text, "utf16le");
+  const bom = Buffer.from([0xff, 0xfe]);
+  const body = Buffer.concat([bom, utf16]);
+
   return new Response(body, {
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type": "text/csv; charset=utf-16le",
       "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "no-store",
     },
   });
 }
