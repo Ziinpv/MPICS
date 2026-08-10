@@ -5,6 +5,7 @@ import { canCreateLocation } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
 import { LocationType, OperationStatus, UserRole } from "@prisma/client";
 import { LOCATION_TYPE_LABELS, requiresLicenseDocs } from "@/lib/labels";
+import { normalizeStorageKey } from "@/lib/mediaUrl";
 
 const VALID_LOCATION_TYPES = new Set(Object.keys(LOCATION_TYPE_LABELS));
 
@@ -112,11 +113,14 @@ export async function POST(req: NextRequest) {
       note: body.note || null,
       media: body.photoKeys?.length
         ? {
-            create: (body.photoKeys as string[]).map((storageKey: string, i: number) => ({
-              storageKey,
-              sortOrder: i,
-              mimeType: "image/jpeg",
-            })),
+            create: (body.photoKeys as string[])
+              .map((storageKey: string) => normalizeStorageKey(String(storageKey)))
+              .filter(Boolean)
+              .map((storageKey: string, i: number) => ({
+                storageKey,
+                sortOrder: i,
+                mimeType: "image/jpeg",
+              })),
           }
         : undefined,
     },

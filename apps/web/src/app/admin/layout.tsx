@@ -51,7 +51,10 @@ const navGroups: NavGroup[] = [
   {
     id: "system",
     label: "Hệ thống",
-    items: [{ href: "/admin/users", label: "Quản lý người dùng" }],
+    items: [
+      { href: "/admin/users", label: "Quản lý người dùng" },
+      { href: "/admin/audit", label: "Nhật ký hệ thống" },
+    ],
   },
 ];
 

@@ -15,6 +15,7 @@ import { GpsLocateButton } from "@/components/GpsLocateButton";
 import { ActionIcon } from "@/components/ActionIcon";
 import { DeviceTypeIcon } from "@/components/DeviceTypeIcon";
 import { StatusIcon } from "@/components/StatusIcon";
+import { mediaUrl } from "@/lib/mediaUrl";
 
 const DA_LAT_CENTER = { lat: 11.9404, lng: 108.4583 };
 const GPS_ZOOM = 16;
@@ -190,6 +191,7 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
         note: note.trim() || null,
         lat: pick.lat,
         lng: pick.lng,
+        photoKeys,
       }),
     });
     const data = await res.json();
@@ -354,11 +356,13 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
               <div className="mt-2 flex flex-wrap gap-2">
                 {photoKeys.map((k) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={k} src={k} alt="" className="h-16 w-16 rounded object-cover" />
+                  <img key={k} src={mediaUrl(k)} alt="" className="h-16 w-16 rounded object-cover" />
                 ))}
               </div>
             )}
-            <p className="mt-1 text-xs text-slate-400">Ảnh đã gắn khi tạo; upload thêm ở đây chỉ lưu file (chưa gắn lại vào bản ghi).</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Ảnh mới sẽ được gắn vào bản ghi khi bấm Lưu thay đổi.
+            </p>
           </div>
           <Btn type="submit" disabled={loading || metaLoading}>
             {loading ? "Đang lưu…" : "Lưu thay đổi"}

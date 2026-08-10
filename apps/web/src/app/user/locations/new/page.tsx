@@ -14,6 +14,7 @@ import { GpsLocateButton } from "@/components/GpsLocateButton";
 import { ActionIcon } from "@/components/ActionIcon";
 import { DeviceTypeIcon } from "@/components/DeviceTypeIcon";
 import { StatusIcon } from "@/components/StatusIcon";
+import { mediaUrl } from "@/lib/mediaUrl";
 
 const DA_LAT_CENTER = { lat: 11.9404, lng: 108.4583 };
 const GPS_ZOOM = 16;
@@ -308,7 +309,7 @@ export default function NewLocationPage() {
               <div className="mt-2 flex flex-wrap gap-2">
                 {photoKeys.map((k) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={k} src={k} alt="" className="h-16 w-16 rounded object-cover" />
+                  <img key={k} src={mediaUrl(k)} alt="" className="h-16 w-16 rounded object-cover" />
                 ))}
               </div>
             )}

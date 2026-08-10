@@ -220,7 +220,7 @@ export function AppShell({
           <nav className="space-y-1 overflow-y-auto pb-4" style={{ maxHeight: "calc(100vh - 200px)" }}>
             {navGroups ? renderGrouped() : renderFlat()}
           </nav>
-          <p className="px-2 text-[10px] text-slate-400">P0 Hardening · Demo OK</p>
+          <p className="px-2 text-[10px] text-slate-400">Demo + P0 OK · Next P1</p>
         </aside>
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>

@@ -5,6 +5,9 @@ import { canUpdateLocation } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
 import { UserRole } from "@prisma/client";
 import { LOCATION_TYPE_LABELS } from "@/lib/labels";
+import { normalizeStorageKey } from "@/lib/storage";
+import { writeAuditLog } from "@/lib/audit";
+import { clientIp } from "@/lib/rateLimit";
 
 const VALID_LOCATION_TYPES = new Set(Object.keys(LOCATION_TYPE_LABELS));
 
@@ -33,7 +36,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!user) return jsonError("Unauthorized", 401);
   if (!canUpdateLocation(user)) return jsonError("Forbidden", 403);
 
-  const existing = await prisma.location.findUnique({ where: { id: params.id } });
+  const existing = await prisma.location.findUnique({
+    where: { id: params.id },
+    include: { media: true },
+  });
   if (!existing) return jsonError("Not found", 404);
   if (user.role === UserRole.USER && existing.orgId !== user.orgId) {
     return jsonError("Forbidden", 403);
@@ -64,8 +70,49 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     },
     include: { media: true, org: true },
   });
+
+  // Gắn ảnh mới (photoKeys) — chỉ thêm key chưa có
+  const photoKeys: string[] = Array.isArray(body.photoKeys) ? body.photoKeys : [];
+  if (photoKeys.length) {
+    const existingKeys = new Set(
+      (existing.media || []).map((m) => normalizeStorageKey(m.storageKey)),
+    );
+    const toAdd = photoKeys
+      .map((k) => normalizeStorageKey(String(k)))
+      .filter((k) => k && !existingKeys.has(k));
+
+    if (toAdd.length) {
+      const maxSort = existing.media.reduce((m, x) => Math.max(m, x.sortOrder), -1);
+      await prisma.locationMedia.createMany({
+        data: toAdd.map((storageKey, i) => ({
+          locationId: params.id,
+          storageKey,
+          mimeType: null,
+          sortOrder: maxSort + 1 + i,
+        })),
+      });
+    }
+  }
+
+  const refreshed = await prisma.location.findUnique({
+    where: { id: params.id },
+    include: { media: true, org: true },
+  });
+
+  await writeAuditLog({
+    actor: user,
+    action: "location.update",
+    entityType: "Location",
+    entityId: params.id,
+    meta: {
+      name: refreshed?.name,
+      addedMedia: photoKeys.length,
+    },
+    ip: clientIp(req),
+  });
+
   return jsonOk({
-    location,
-    locationTypeLabel: LOCATION_TYPE_LABELS[location.locationType],
+    location: refreshed,
+    locationTypeLabel: LOCATION_TYPE_LABELS[refreshed!.locationType],
   });
 }

@@ -12,5 +12,20 @@ services:
     volumes:
       - mpcis_pg_data:/var/lib/postgresql/data
 
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: mpcis-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: mpcis
+      MINIO_ROOT_PASSWORD: mpcisminio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - mpcis_minio_data:/data
+
 volumes:
   mpcis_pg_data:
+  mpcis_minio_data:

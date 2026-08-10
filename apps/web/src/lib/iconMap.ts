@@ -147,6 +147,7 @@ export function navIconForHref(href: string): LucideIcon {
   if (href.includes("/schedules")) return List;
   if (href.includes("/reports")) return Download;
   if (href.includes("/users")) return Users;
+  if (href.includes("/audit")) return List;
   if (href === "/user") return LayoutDashboard;
   return List;
 }

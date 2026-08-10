@@ -1,24 +1,25 @@
 # Tiến độ & lộ trình sản xuất — MPCIS
 
-> Cập nhật: **6 Aug 2026**  
-> Trạng thái: **Demo MVP thành công** · Bắt đầu chuyển sang phase sẵn sàng thực tế (P0).
+> Cập nhật: **10 Aug 2026**  
+> Trạng thái: **Demo + TTVH P1–P3 + P0 + P1 media/audit (code)** · Next: validate tọa độ / staging deploy / P2 IoT.  
+> Repo: https://github.com/Ziinpv/MPICS · Commit gần nhất trên remote có thể chưa gồm P1 — commit local khi sẵn sàng.
 
 ---
 
-## 1. Kết luận demo
+## 1. Kết luận hiện tại
 
-| Tiêu chí (docs/03_Plan_MVP_Demo.md §9) | Kết quả |
-|----------------------------------------|---------|
-| Chạy local: Docker Postgres + seed + `npm run dev` | ✅ |
-| Path A — User tạo địa điểm (form + GPS + ảnh) → map/list | ✅ |
-| Path B — Admin content → lịch → simulator play → log | ✅ |
-| User không tạo được content (UI/API) | ✅ |
-| README tài khoản + walkthrough | ✅ |
-| Hội tụ UI TTVH P1–P3 (sidebar, list, charts, users, export, CRUD loại ĐĐ, sửa ĐĐ) | ✅ |
+| Hạng mục | Kết quả |
+|----------|---------|
+| Demo MVP (Path A + Path B) | ✅ Đóng |
+| Hội tụ UI TTVH P1–P3 | ✅ Đóng |
+| P0 Hardening (auth/audit/migrate/backup/staging env) | ✅ Code xong (~90%; còn quên MK + deploy staging máy chủ) |
+| Push GitHub `main` | ✅ |
+| Sẵn sàng production kỹ thuật | **~35%** |
 
-**Verdict:** Demo walkthrough 10–15 phút đủ 2 happy path; Admin shell kiểu TTVH + module IoT/phát sóng ổn định trên localhost.
+**Verdict:** Walkthrough demo ổn định local. Nền tảng hardening đủ để bắt đầu staging; chưa đủ go-live (thiếu object storage, IoT thật, CI/CD, UAT).
 
-Local: http://localhost:3000 · Seed: `admin` / `user.xa1` / `user.xa2` · `Demo@123`
+Local: http://localhost:3000 · Seed: `admin` / `user.xa1` / `user.xa2` · `Demo@123`  
+Windows: dùng `npm.cmd` nếu PowerShell chặn `npm.ps1`.
 
 ---
 
@@ -37,72 +38,11 @@ Local: http://localhost:3000 · Seed: `admin` / `user.xa1` / `user.xa2` · `Demo
 | P2 | List theo loại, biểu đồ, danh mục Tỉnh/Xã | Done |
 | P3 | User management, export CSV, CRUD `LocationTypeDef`, UI sửa địa điểm | Done |
 
----
-
-## 3. Demo ≠ Production
-
-Còn thiếu / rủi ro nếu đưa thẳng ra thực tế:
-
-| Hạng mục | Hiện trạng demo | Cần cho production |
-|----------|-----------------|-------------------|
-| Bảo mật | JWT secret cố định, password seed | Secret rotation, HTTPS, đổi MK, rate-limit |
-| DB | `db push` + reseed | Prisma migrate, backup/restore, không mất data |
-| Media | File/local key | S3/MinIO, virus scan, quota |
-| IoT | Simulator HTTP | MQTT/broker, device credential, telemetry |
-| Auth/RBAC | 2 role đơn giản | Đổi MK, phân quyền theo cấp tỉnh/huyện/xã |
-| Quan sát | Log console | Structured logs, metrics, alert |
-| Môi trường | 1 máy local | Staging + UAT + prod, CI/CD |
-
-Ước lượng sẵn sàng production kỹ thuật hiện tại: **~20–25%** (demo + UI nền).
-
----
-
-## 4. Lộ trình đưa ra thực tế
-
-### P0 — Hardening (ưu tiên ngay, 1–2 tuần)
-1. Biến môi trường production (`JWT_SECRET`, `DATABASE_URL`, CORS)
-2. Đổi mật khẩu / bắt buộc đổi lần đầu đăng nhập
-3. Rate-limit login; session/JWT expiry rõ ràng
-4. Prisma **migrate** thay vì chỉ `db push`; backup Postgres định kỳ
-5. Staging environment tách khỏi máy demo
-6. Audit tối thiểu: ai tạo/sửa user, loại ĐĐ, publish lịch
-
-**Milestone:** Deploy staging nội bộ, không dùng password seed công khai.
-
-### P1 — Dữ liệu & GIS sản xuất (2–3 tuần)
-1. Import/đồng bộ danh mục xã đầy đủ theo địa bàn triển khai
-2. Object storage ảnh địa điểm; gắn media khi PATCH
-3. Validate tọa độ trong phạm vi xã; lịch sử chỉnh sửa (optional)
-4. Phân quyền list/export đúng subtree org
-
-**Milestone:** User xã thao tác GIS ổn định trên staging với data thật (mẫu).
-
-### P2 — IoT & phát sóng thật (4–6 tuần)
-1. MQTT (hoặc gateway) thay simulator poll
-2. Device auth + heartbeat + lệnh 2 chiều
-3. Pipeline media/TTS (hoặc tích hợp dịch vụ sẵn có)
-4. Lịch định kỳ + báo cáo phát; ModerationReview đầy đủ
-
-**Milestone:** Path B chạy với thiết bị lab / cụm thí điểm.
-
-### P3 — Vận hành & UAT (song song / sau P1)
-1. CI/CD, healthcheck, runbook sự cố
-2. UAT với cán bộ địa phương (Lâm Đồng hoặc địa bàn pilot)
-3. Training Admin/User; checklist go-live
-4. Giám sát SLA online thiết bị
-
-**Milestone:** Go-live pilot 1–2 xã.
-
----
-
-## 5. Việc nên làm tiếp ngay (sprint đề xuất)
-
-### P0 Hardening — **đã triển khai code (6 Aug 2026)**
-
-| Hạng mục | Trạng thái |
-|----------|------------|
-| Đổi mật khẩu + bắt buộc đổi (user mới / reset) | ✅ `/account/password` |
-| JWT expiry cấu hình (`JWT_EXPIRES_IN`, mặc định 8h) | ✅ |
+### P0 Hardening (6–10 Aug 2026)
+| Hạng mục | Status |
+|----------|--------|
+| Đổi mật khẩu + bắt buộc đổi (user mới / reset) — `/account/password` | ✅ |
+| JWT expiry (`JWT_EXPIRES_IN`) | ✅ |
 | Rate-limit login (10 / 15 phút / IP) | ✅ |
 | Cấm JWT_SECRET demo trên staging/prod | ✅ |
 | AuditLog (login, user, loại ĐĐ, publish) | ✅ |
@@ -110,24 +50,91 @@ Còn thiếu / rủi ro nếu đưa thẳng ra thực tế:
 | Script backup `scripts/backup-db.ps1` / `.sh` | ✅ |
 | `.env.staging.example` + tắt demo hints | ✅ |
 | Healthcheck `GET /api/health` | ✅ |
+| Quên mật khẩu / email reset | ⏳ Pending |
+| Deploy staging trên máy chủ thật | ⏳ Pending |
 
-**Áp dụng local sau pull:**
+---
+
+## 3. Demo / P0 ≠ Production đầy đủ
+
+| Hạng mục | Hiện trạng | Cần tiếp |
+|----------|------------|----------|
+| Bảo mật | Đổi MK, rate-limit, secret check, audit | Quên MK, HTTPS terminate, secret rotation ops |
+| DB | Migrate + backup script | Restore drill, monitoring disk |
+| Media | File/local key | **S3/MinIO** (P1) |
+| IoT | Simulator HTTP | MQTT/broker (P2) |
+| Quan sát | Health endpoint | Structured logs, metrics, alert |
+| Môi trường | `.env.staging.example` | Staging host + CI/CD + UAT |
+
+---
+
+## 4. Lộ trình còn lại
+
+### P1 — Dữ liệu & GIS sản xuất (2–3 tuần) ← **next**
+1. Object storage ảnh địa điểm (MinIO/S3); gắn media khi PATCH
+2. UI Admin xem AuditLog
+3. Validate tọa độ trong phạm vi xã (optional lịch sử sửa)
+4. Phân quyền list/export đúng subtree org (siết thêm nếu cần)
+
+**Milestone:** User xã thao tác GIS ổn định trên staging với upload ảnh thật.
+
+### P2 — IoT & phát sóng thật (4–6 tuần)
+1. MQTT (hoặc gateway) thay simulator poll
+2. Device auth + heartbeat + lệnh 2 chiều
+3. Pipeline media/TTS; lịch định kỳ; ModerationReview đầy đủ
+
+**Milestone:** Path B với thiết bị lab / cụm thí điểm.
+
+### P3 — Vận hành & UAT
+1. CI/CD, runbook; UAT cán bộ địa phương
+2. Training; checklist go-live; SLA online thiết bị
+
+**Milestone:** Go-live pilot 1–2 xã.
+
+---
+
+## 5. Sprint đề xuất ngay
+
+### P1 (đang làm / đã có trong code — 10 Aug 2026)
+
+| Hạng mục | Status |
+|----------|--------|
+| Storage abstraction local + MinIO/S3 (`STORAGE_DRIVER`) | ✅ |
+| MinIO trong `docker-compose` (:9000 API, :9001 console) | ✅ |
+| Upload qua `lib/storage` + proxy `/api/media/raw` | ✅ |
+| PATCH location gắn `photoKeys` → LocationMedia | ✅ |
+| Admin AuditLog UI `/admin/audit` + `GET /api/audit` | ✅ |
+| Validate tọa độ theo địa bàn xã | ⏳ Pending |
+
+**Bật MinIO local:**
 
 ```bash
-npm.cmd run db:push
-# hoặc: npm.cmd run db:migrate  (sau khi đã baseline)
-npm.cmd run db:generate
+docker compose up -d
+# apps/web/.env:
+# STORAGE_DRIVER=s3
+# NEXT_PUBLIC_STORAGE_DRIVER=s3
+# S3_ENDPOINT=http://127.0.0.1:9000
+# S3_ACCESS_KEY=mpcis
+# S3_SECRET_KEY=mpcisminio
+# S3_BUCKET=mpcis-media
 ```
 
-Staging checklist: copy `.env.staging.example` → `.env`, đổi `JWT_SECRET` + DB password, `NEXT_PUBLIC_SHOW_DEMO_HINTS=0`, `SEED_MUST_CHANGE_PASSWORD=1`, backup định kỳ.
+Console MinIO: http://localhost:9001 (mpcis / mpcisminio)
 
-### Sprint tiếp (P1)
+### Việc còn lại
 
-1. Object storage ảnh (MinIO/S3)  
-2. Validate tọa độ theo địa bàn  
-3. UI xem AuditLog (Admin)  
+1. Validate tọa độ theo địa bàn  
+2. Deploy staging checklist  
+3. P2 MQTT / IoT thật  
 
-Các hạng mục polish demo còn lại (không chặn production start): ảnh trên incident form.
+Áp dụng local sau pull:
+
+```bash
+docker compose up -d
+npm.cmd run db:push   # hoặc db:migrate
+npm.cmd run db:generate
+npm.cmd run dev
+```
 
 ---
 
@@ -136,4 +143,4 @@ Các hạng mục polish demo còn lại (không chặn production start): ảnh
 - Plan demo: [03_Plan_MVP_Demo.md](./03_Plan_MVP_Demo.md)
 - Chạy local: [../README.md](../README.md)
 - Nghiệp vụ: [nghiepvu/README.md](./nghiepvu/README.md)
-- Canvas tiến độ: `canvases/mpics-progress-2026-08.canvas.tsx` (Cursor)
+- Canvas: `canvases/mpics-progress-2026-08.canvas.tsx`

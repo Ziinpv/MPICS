@@ -1,7 +1,7 @@
 # MPCIS Demo — Hướng dẫn chạy
 
-> **Trạng thái (6 Aug 2026):** Demo MVP **thành công** (Path A + Path B + TTVH P1–P3).  
-> Lộ trình đưa ra thực tế: [`docs/04_TienDo_Va_Roadmap_SanXuat.md`](docs/04_TienDo_Va_Roadmap_SanXuat.md).
+> **Trạng thái (10 Aug 2026):** Demo MVP + TTVH P1–P3 + **P0 Hardening** đã ship (`main` @ GitHub).  
+> Lộ trình tiếp: P1 GIS sản xuất — [`docs/04_TienDo_Va_Roadmap_SanXuat.md`](docs/04_TienDo_Va_Roadmap_SanXuat.md).
 
 Demo MVP theo [`docs/03_Plan_MVP_Demo.md`](docs/03_Plan_MVP_Demo.md).
 
@@ -100,4 +100,11 @@ JWT_SECRET=mpcis-demo-secret-change-me
 - Health: `GET /api/health`
 - Backup: `npm.cmd run db:backup` (hoặc `scripts/backup-db.ps1`)
 - Staging env mẫu: `apps/web/.env.staging.example`
+
+## P1 Media & Audit (đang có)
+
+- MinIO: `docker compose up -d` → API `:9000`, console http://localhost:9001 (`mpcis` / `mpcisminio`)
+- `.env`: `STORAGE_DRIVER=s3` + `NEXT_PUBLIC_STORAGE_DRIVER=s3` (xem `.env.example`)
+- Upload ảnh → MinIO (hoặc local `public/uploads`); sửa địa điểm gắn media khi Lưu
+- Admin **Nhật ký hệ thống**: `/admin/audit`
 
