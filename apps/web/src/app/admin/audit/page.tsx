@@ -17,18 +17,31 @@ type Log = {
   createdAt: string;
 };
 
+const ACTION_PRESETS = [
+  "",
+  "auth.login",
+  "auth.change_password",
+  "user.create",
+  "user.update",
+  "schedule.publish",
+  "content.approve_tts",
+  "location.update",
+  "device.mqtt_rotate",
+];
+
 export default function AdminAuditPage() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [action, setAction] = useState("");
   const [q, setQ] = useState("");
   const [applied, setApplied] = useState({ action: "", q: "" });
   const [msg, setMsg] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (applied.action) params.set("action", applied.action);
     if (applied.q) params.set("q", applied.q);
-    params.set("limit", "100");
+    params.set("limit", "150");
     fetch(`/api/audit?${params}`)
       .then((r) => r.json())
       .then((d) => {
@@ -41,30 +54,64 @@ export default function AdminAuditPage() {
       .catch(() => setMsg("Không tải được audit log"));
   }, [applied]);
 
+  async function exportCsv() {
+    const params = new URLSearchParams({ format: "csv", limit: "2000" });
+    if (applied.action) params.set("action", applied.action);
+    if (applied.q) params.set("q", applied.q);
+    const res = await fetch(`/api/audit?${params}`);
+    if (!res.ok) {
+      setMsg("Xuất CSV lỗi");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setMsg("Đã tải audit CSV");
+  }
+
   return (
     <div>
       <PageHeader
         title="Nhật ký hệ thống"
-        subtitle="AuditLog — đăng nhập, user, loại ĐĐ, publish, sửa địa điểm"
+        subtitle="AuditLog — đăng nhập, user, TTS, publish, GIS, MQTT"
         actions={
-          <Btn
-            variant="secondary"
-            onClick={() => setApplied({ action, q })}
-          >
-            <ActionIcon action="search" size="sm" />
-            Làm mới
-          </Btn>
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="secondary" onClick={() => setApplied({ action, q })}>
+              <ActionIcon action="search" size="sm" />
+              Làm mới
+            </Btn>
+            <Btn variant="secondary" onClick={exportCsv}>
+              <ActionIcon action="download" size="sm" />
+              Xuất CSV
+            </Btn>
+          </div>
         }
       />
-      {msg && <p className="mb-3 text-sm text-rose-600">{msg}</p>}
+      {msg && <p className="mb-3 text-sm text-teal-700">{msg}</p>}
 
       <SearchPanel onSearch={() => setApplied({ action, q })}>
         <div>
-          <label>Action</label>
+          <label>Action (preset hoặc gõ)</label>
+          <select
+            value={ACTION_PRESETS.includes(action) ? action : ""}
+            onChange={(e) => setAction(e.target.value)}
+            className="mb-2"
+          >
+            <option value="">— chọn preset —</option>
+            {ACTION_PRESETS.filter(Boolean).map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
           <input
             value={action}
             onChange={(e) => setAction(e.target.value)}
-            placeholder="VD: auth.login, user.create, schedule.publish…"
+            placeholder="VD: auth.login, schedule.publish…"
             onKeyDown={(e) => e.key === "Enter" && setApplied({ action, q })}
           />
         </div>
@@ -110,8 +157,21 @@ export default function AdminAuditPage() {
                   ) : null}
                 </td>
                 <td className="font-mono text-xs text-slate-400">{l.ip || "—"}</td>
-                <td className="max-w-[220px] truncate font-mono text-[10px] text-slate-400">
-                  {l.meta ? JSON.stringify(l.meta) : "—"}
+                <td className="max-w-[260px]">
+                  {l.meta ? (
+                    <button
+                      type="button"
+                      className="w-full truncate text-left font-mono text-[10px] text-slate-500 hover:text-brand-700"
+                      onClick={() => setExpanded(expanded === l.id ? null : l.id)}
+                      title="Xem meta"
+                    >
+                      {expanded === l.id
+                        ? JSON.stringify(l.meta, null, 2)
+                        : JSON.stringify(l.meta)}
+                    </button>
+                  ) : (
+                    "—"
+                  )}
                 </td>
               </tr>
             ))}

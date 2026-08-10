@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
-import { UserRole } from "@prisma/client";
+import { CommandStatus, UserRole } from "@prisma/client";
 import { LOCATION_TYPE_LABELS } from "@/lib/labels";
 
 export async function GET() {
@@ -11,8 +11,16 @@ export async function GET() {
 
   const orgFilter = { path: { startsWith: user.orgPath } };
   const locationWhere = { org: orgFilter };
+  const deviceWhere = { org: orgFilter };
+  const commandWhere = { device: deviceWhere };
 
   const startYear = new Date(new Date().getFullYear(), 0, 1);
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date();
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const statuses: CommandStatus[] = ["pending", "sent", "acked", "failed", "timeout"];
 
   const [
     devicesOnline,
@@ -24,24 +32,27 @@ export async function GET() {
     recentCommands,
     locations,
     recentLocations,
+    commandGroup,
+    commandsToday,
   ] = await Promise.all([
-    prisma.device.count({ where: { online: true, org: orgFilter } }),
-    prisma.device.count({ where: { org: orgFilter } }),
+    prisma.device.count({ where: { online: true, ...deviceWhere } }),
+    prisma.device.count({ where: deviceWhere }),
     prisma.location.count({ where: locationWhere }),
     prisma.locationMedia.count({ where: { location: locationWhere } }),
     prisma.incidentReport.count({ where: { status: "open", org: orgFilter } }),
     prisma.broadcastSchedule.count({
       where: {
-        startAt: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(23, 59, 59, 999)),
-        },
+        startAt: { gte: dayStart, lt: dayEnd },
+        campaign: { org: orgFilter },
       },
     }),
     prisma.deviceCommand.findMany({
-      take: 10,
+      where: commandWhere,
+      take: 40,
       orderBy: { createdAt: "desc" },
-      include: { device: { select: { name: true, deviceCode: true } } },
+      include: {
+        device: { select: { name: true, deviceCode: true, online: true } },
+      },
     }),
     prisma.location.findMany({
       where: locationWhere,
@@ -53,7 +64,22 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       include: { org: { select: { name: true } } },
     }),
+    prisma.deviceCommand.groupBy({
+      by: ["status"],
+      where: commandWhere,
+      _count: { _all: true },
+    }),
+    prisma.deviceCommand.count({
+      where: { ...commandWhere, createdAt: { gte: dayStart } },
+    }),
   ]);
+
+  const commandCounts: Record<string, number> = Object.fromEntries(
+    statuses.map((s) => [s, 0]),
+  );
+  for (const row of commandGroup) {
+    commandCounts[row.status] = row._count._all;
+  }
 
   const typeSet = new Set(locations.map((l) => l.locationType));
   const locationTypesCount = typeSet.size || Object.keys(LOCATION_TYPE_LABELS).length;
@@ -84,6 +110,8 @@ export async function GET() {
     incidentsOpen,
     schedulesToday,
     recentCommands,
+    commandCounts,
+    commandsToday,
     byType,
     locationsByMonth: months,
     recentLocations: recentLocations.map((l) => ({

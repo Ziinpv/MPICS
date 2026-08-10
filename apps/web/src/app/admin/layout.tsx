@@ -46,7 +46,7 @@ const navGroups: NavGroup[] = [
   {
     id: "reports",
     label: "Báo cáo",
-    items: [{ href: "/admin/reports", label: "Xuất báo cáo địa điểm" }],
+    items: [{ href: "/admin/reports", label: "Báo cáo vận hành" }],
   },
   {
     id: "system",
