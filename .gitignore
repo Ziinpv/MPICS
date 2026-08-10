@@ -20,3 +20,5 @@ infra/mosquitto/certs/*
 # OS
 .DS_Store
 *.log
+
+.tmp-bridge-*.txt
