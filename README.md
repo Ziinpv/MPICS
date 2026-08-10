@@ -68,9 +68,26 @@ Mở http://localhost:3000
 
 ## Simulator
 
+### HTTP (cũ)
+
 ```bash
-cd apps/web && npm run sim
+cd apps/web && npm.cmd run sim
 ```
+
+### MQTT (P2)
+
+```bash
+# Broker đã có trong docker compose (port 1883)
+docker compose up -d mosquitto
+
+# Terminal 1 — bridge MQTT ↔ API
+npm.cmd run mqtt:bridge
+
+# Terminal 2 — giả lập thiết bị MQTT
+npm.cmd run sim:mqtt
+```
+
+Topics: `mpcis/devices/{code}/heartbeat|command|ack`
 
 ## Cấu trúc
 

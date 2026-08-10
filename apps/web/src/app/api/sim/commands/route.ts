@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     data: { status: "acked", ackedAt: new Date() },
   });
 
+  // Cho phép ack từ pending (HTTP poll) hoặc sent (MQTT)
   if (command.commandType === "set_volume" && command.payload && typeof command.payload === "object") {
     const volume = (command.payload as { volume?: number }).volume;
     if (volume != null) {

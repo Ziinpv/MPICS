@@ -11,6 +11,8 @@
     "db:seed": "npm --prefix apps/web run db:seed",
     "db:setup": "npm run db:up && sleep 5 && npm run db:generate && npm run db:migrate && npm run db:seed",
     "db:backup": "powershell -ExecutionPolicy Bypass -File ./scripts/backup-db.ps1",
-    "sim": "npm --prefix apps/web run sim"
+    "sim": "npm --prefix apps/web run sim",
+    "sim:mqtt": "npm --prefix apps/web run sim:mqtt",
+    "mqtt:bridge": "npm --prefix apps/web run mqtt:bridge"
   }
 }

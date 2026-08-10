@@ -125,7 +125,8 @@ Console MinIO: http://localhost:9001 (mpcis / mpcisminio)
 
 1. Deploy staging theo [05_Staging_Checklist.md](./05_Staging_Checklist.md)  
 2. SMTP gửi email quên MK thật  
-3. P2 MQTT / IoT thật  
+3. P2 MQTT — **đã có broker + bridge + sim MQTT** (auth thiết bị / TLS còn lại)  
+4. TTS/media pipeline + lịch định kỳ  
 
 Áp dụng local sau pull:
 

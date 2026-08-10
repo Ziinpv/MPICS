@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
-    "sim": "tsx scripts/device-sim.ts"
+    "sim": "tsx scripts/device-sim.ts",
+    "sim:mqtt": "tsx scripts/device-sim-mqtt.ts",
+    "mqtt:bridge": "tsx scripts/mqtt-bridge.ts"
   },
   "prisma": {
     "schema": "prisma/schema.prisma",
@@ -26,6 +28,7 @@
     "jose": "^6.2.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.28.0",
+    "mqtt": "^5.10.4",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",

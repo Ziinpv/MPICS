@@ -19,8 +19,16 @@ export default function AdminIotDashboard() {
     <div>
       <PageHeader
         title="Dashboard IoT"
-        subtitle="Giám sát thiết bị online, lịch phát và lệnh gần đây"
+        subtitle="Giám sát thiết bị online, lịch phát và lệnh gần đây · HTTP sim hoặc MQTT (P2)"
       />
+      <Card className="mb-4 border border-brand-100 bg-brand-50/50 p-3 text-sm text-brand-900">
+        <p className="font-medium">MQTT (demo)</p>
+        <p className="mt-1 text-brand-800/90">
+          Broker :1883 · Bridge: <code className="font-mono text-xs">npm.cmd run mqtt:bridge</code> ·
+          Device: <code className="font-mono text-xs">npm.cmd run sim:mqtt</code> · HTTP cũ:{" "}
+          <code className="font-mono text-xs">npm.cmd run sim</code>
+        </p>
+      </Card>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           label="Thiết bị online"

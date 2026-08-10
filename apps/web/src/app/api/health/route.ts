@@ -8,6 +8,7 @@ export async function GET() {
       ok: true,
       service: "mpcis-web",
       appEnv: process.env.APP_ENV || process.env.NODE_ENV || "development",
+      mqttUrl: process.env.MQTT_URL || "mqtt://127.0.0.1:1883",
       time: new Date().toISOString(),
     });
   } catch {
