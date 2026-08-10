@@ -104,7 +104,7 @@ Windows: dùng `npm.cmd` nếu PowerShell chặn `npm.ps1`.
 | Upload qua `lib/storage` + proxy `/api/media/raw` | ✅ |
 | PATCH location gắn `photoKeys` → LocationMedia | ✅ |
 | Admin AuditLog UI `/admin/audit` + `GET /api/audit` | ✅ |
-| Validate tọa độ theo địa bàn xã | ⏳ Pending |
+| Validate tọa độ theo địa bàn xã | ✅ bbox Lạc Dương / Đơn Dương + fallback Lâm Đồng |
 
 **Bật MinIO local:**
 
@@ -123,9 +123,9 @@ Console MinIO: http://localhost:9001 (mpcis / mpcisminio)
 
 ### Việc còn lại
 
-1. Validate tọa độ theo địa bàn  
-2. Deploy staging checklist  
-3. P2 MQTT / IoT thật  
+1. Deploy staging checklist  
+2. P2 MQTT / IoT thật  
+3. Quên mật khẩu / email reset (P0 còn lại)  
 
 Áp dụng local sau pull:
 

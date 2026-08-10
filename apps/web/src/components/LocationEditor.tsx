@@ -16,6 +16,7 @@ import { ActionIcon } from "@/components/ActionIcon";
 import { DeviceTypeIcon } from "@/components/DeviceTypeIcon";
 import { StatusIcon } from "@/components/StatusIcon";
 import { mediaUrl } from "@/lib/mediaUrl";
+import { checkLatLngForOrg } from "@/lib/communeBbox";
 
 const DA_LAT_CENTER = { lat: 11.9404, lng: 108.4583 };
 const GPS_ZOOM = 16;
@@ -55,9 +56,11 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [photoKeys, setPhotoKeys] = useState<string[]>([]);
   const [msg, setMsg] = useState("");
+  const [geoWarn, setGeoWarn] = useState("");
   const [loading, setLoading] = useState(false);
   const [metaLoading, setMetaLoading] = useState(true);
   const [subtypesByType, setSubtypesByType] = useState(LOCATION_SUBTYPES_BY_TYPE);
+  const [orgRef, setOrgRef] = useState<{ name: string; code?: string; path?: string } | null>(null);
 
   const needLicense = requiresLicenseDocs(locationType);
   const subtypes = useMemo(
@@ -115,6 +118,9 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
         setPick({ lat: loc.lat, lng: loc.lng });
         setMapZoom(GPS_ZOOM);
         setPhotoKeys((loc.media || []).map((m: any) => m.storageKey));
+        if (loc.org) {
+          setOrgRef({ name: loc.org.name, code: loc.org.code, path: loc.org.path });
+        }
 
         const province = loadedOrgs.find((o: any) => o.type === "province");
         if (province) setProvinceId(province.id);
@@ -136,10 +142,20 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
     if (!list.some((s) => s.value === locationSubtype)) {
       setLocationSubtype(list[0]?.value || "other");
     }
-    if (!requiresLicenseDocs(locationType)) {
-      // keep existing license fields; don't wipe on edit when switching away then back
-    }
   }, [locationType, subtypesByType, locationSubtype, metaLoading]);
+
+  useEffect(() => {
+    const org =
+      communes.find((c) => c.id === communeId) ||
+      orgRef ||
+      null;
+    if (!pick || !org) {
+      setGeoWarn("");
+      return;
+    }
+    const geo = checkLatLngForOrg(org, pick.lat, pick.lng);
+    setGeoWarn(geo.ok ? "" : geo.error);
+  }, [pick, communeId, communes, orgRef]);
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -158,6 +174,14 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
     if (!pick) {
       setMsg("Hãy chọn tọa độ trên bản đồ");
       return;
+    }
+    const org = communes.find((c) => c.id === communeId) || orgRef;
+    if (org) {
+      const geo = checkLatLngForOrg(org, pick.lat, pick.lng);
+      if (!geo.ok) {
+        setMsg(geo.error);
+        return;
+      }
     }
     if (!address.trim()) {
       setMsg("Vui lòng nhập địa chỉ");
@@ -215,6 +239,11 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
         }
       />
       {msg && <p className="mb-3 text-sm text-rose-600">{msg}</p>}
+      {geoWarn && !msg && (
+        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {geoWarn}
+        </p>
+      )}
       {metaLoading && <p className="mb-3 text-sm text-slate-500">Đang tải…</p>}
 
       <form onSubmit={submit} className="grid gap-6 lg:grid-cols-2">

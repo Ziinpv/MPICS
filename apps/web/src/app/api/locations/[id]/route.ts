@@ -8,6 +8,7 @@ import { LOCATION_TYPE_LABELS } from "@/lib/labels";
 import { normalizeStorageKey } from "@/lib/storage";
 import { writeAuditLog } from "@/lib/audit";
 import { clientIp } from "@/lib/rateLimit";
+import { checkLatLngForOrg, isGeoValidationEnabled } from "@/lib/communeBbox";
 
 const VALID_LOCATION_TYPES = new Set(Object.keys(LOCATION_TYPE_LABELS));
 
@@ -38,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   const existing = await prisma.location.findUnique({
     where: { id: params.id },
-    include: { media: true },
+    include: { media: true, org: true },
   });
   if (!existing) return jsonError("Not found", 404);
   if (user.role === UserRole.USER && existing.orgId !== user.orgId) {
@@ -52,6 +53,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     );
   }
 
+  const nextLat = body.lat != null ? Number(body.lat) : existing.lat;
+  const nextLng = body.lng != null ? Number(body.lng) : existing.lng;
+  if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng)) {
+    return jsonError("lat/lng không hợp lệ");
+  }
+  if (isGeoValidationEnabled() && existing.org) {
+    const geo = checkLatLngForOrg(existing.org, nextLat, nextLng);
+    if (!geo.ok) return jsonError(geo.error, 400);
+  }
+
   const location = await prisma.location.update({
     where: { id: params.id },
     data: {
@@ -59,8 +70,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       locationType: body.locationType ?? undefined,
       locationSubtype: body.locationSubtype ?? undefined,
       address: body.address ?? undefined,
-      lat: body.lat != null ? Number(body.lat) : undefined,
-      lng: body.lng != null ? Number(body.lng) : undefined,
+      lat: body.lat != null ? nextLat : undefined,
+      lng: body.lng != null ? nextLng : undefined,
       licenseNumber: body.licenseNumber ?? undefined,
       licenseConditions: body.licenseConditions ?? undefined,
       licenseDate: body.licenseDate ? new Date(body.licenseDate) : undefined,

@@ -8,6 +8,7 @@ import {
   LOCATION_TYPE_LABELS,
   LOCATION_TYPE_OPTIONS,
 } from "@/lib/labels";
+import { COMMUNE_BBOX_BY_KEY, LAM_DONG_BBOX, isGeoValidationEnabled } from "@/lib/communeBbox";
 
 export async function GET() {
   const user = await getSession();
@@ -58,5 +59,10 @@ export async function GET() {
     locationSubtypesByType,
     deviceTypes: DEVICE_TYPE_OPTIONS,
     deviceTypeLabels: DEVICE_TYPE_LABELS,
+    geoValidation: {
+      enabled: isGeoValidationEnabled(),
+      lamDongBbox: LAM_DONG_BBOX,
+      communeBboxes: COMMUNE_BBOX_BY_KEY,
+    },
   });
 }

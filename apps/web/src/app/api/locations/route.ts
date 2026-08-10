@@ -6,6 +6,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { LocationType, OperationStatus, UserRole } from "@prisma/client";
 import { LOCATION_TYPE_LABELS, requiresLicenseDocs } from "@/lib/labels";
 import { normalizeStorageKey } from "@/lib/mediaUrl";
+import { checkLatLngForOrg, isGeoValidationEnabled } from "@/lib/communeBbox";
 
 const VALID_LOCATION_TYPES = new Set(Object.keys(LOCATION_TYPE_LABELS));
 
@@ -85,11 +86,24 @@ export async function POST(req: NextRequest) {
     return jsonError("Chỉ tạo địa điểm trong xã của bạn", 403);
   }
 
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return jsonError("lat/lng không hợp lệ");
+  }
+  if (isGeoValidationEnabled()) {
+    const geo = checkLatLngForOrg(org, lat, lng);
+    if (!geo.ok) return jsonError(geo.error, 400);
+  }
+
   let provinceOrgId: string | null = null;
   const parts = org.path.split("/").filter(Boolean);
   if (parts.length) {
     const province = await prisma.organization.findFirst({
-      where: { code: parts[0], type: "province" },
+      where: {
+        type: "province",
+        OR: [{ code: "68" }, { path: `/${parts[0]}` }, { path: { startsWith: `/${parts[0]}` } }],
+      },
     });
     provinceOrgId = province?.id ?? null;
   }
@@ -103,8 +117,8 @@ export async function POST(req: NextRequest) {
       locationType: body.locationType,
       locationSubtype: body.locationSubtype || null,
       address: body.address.trim(),
-      lat: Number(body.lat),
-      lng: Number(body.lng),
+      lat,
+      lng,
       licenseNumber: needsLicense ? body.licenseNumber.trim() : null,
       licenseConditions: needsLicense ? body.licenseConditions || null : null,
       licenseDate: needsLicense && body.licenseDate ? new Date(body.licenseDate) : null,

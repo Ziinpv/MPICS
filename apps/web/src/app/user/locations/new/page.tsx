@@ -15,6 +15,7 @@ import { ActionIcon } from "@/components/ActionIcon";
 import { DeviceTypeIcon } from "@/components/DeviceTypeIcon";
 import { StatusIcon } from "@/components/StatusIcon";
 import { mediaUrl } from "@/lib/mediaUrl";
+import { checkLatLngForOrg } from "@/lib/communeBbox";
 
 const DA_LAT_CENTER = { lat: 11.9404, lng: 108.4583 };
 const GPS_ZOOM = 16;
@@ -39,6 +40,7 @@ export default function NewLocationPage() {
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [photoKeys, setPhotoKeys] = useState<string[]>([]);
   const [msg, setMsg] = useState("");
+  const [geoWarn, setGeoWarn] = useState("");
   const [loading, setLoading] = useState(false);
   const [metaLoading, setMetaLoading] = useState(true);
 
@@ -50,6 +52,19 @@ export default function NewLocationPage() {
 
   const provinces = useMemo(() => orgs.filter((o) => o.type === "province"), [orgs]);
   const communes = useMemo(() => orgs.filter((o) => o.type === "commune"), [orgs]);
+  const selectedCommune = useMemo(
+    () => communes.find((c) => c.id === communeId) || null,
+    [communes, communeId],
+  );
+
+  useEffect(() => {
+    if (!pick || !selectedCommune) {
+      setGeoWarn("");
+      return;
+    }
+    const geo = checkLatLngForOrg(selectedCommune, pick.lat, pick.lng);
+    setGeoWarn(geo.ok ? "" : geo.error);
+  }, [pick, selectedCommune]);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +135,13 @@ export default function NewLocationPage() {
       setMsg("Hãy chọn tọa độ trên bản đồ");
       return;
     }
+    if (selectedCommune) {
+      const geo = checkLatLngForOrg(selectedCommune, pick.lat, pick.lng);
+      if (!geo.ok) {
+        setMsg(geo.error);
+        return;
+      }
+    }
     if (!address.trim()) {
       setMsg("Vui lòng nhập địa chỉ");
       return;
@@ -168,6 +190,11 @@ export default function NewLocationPage() {
     <div>
       <PageHeader title="Thêm địa điểm / tài sản" />
       {msg && <p className="mb-3 text-sm text-rose-600">{msg}</p>}
+      {geoWarn && !msg && (
+        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {geoWarn}
+        </p>
+      )}
 
       <form onSubmit={submit} className="grid gap-6 lg:grid-cols-2">
         <Card className="space-y-3">
