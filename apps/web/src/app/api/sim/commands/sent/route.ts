@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
   const command = await prisma.deviceCommand.update({
     where: { id: body.commandId },
-    data: { status: "sent" },
+    data: { status: "sent", sentAt: new Date() },
   });
 
   return jsonOk({ command });

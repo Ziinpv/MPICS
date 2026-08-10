@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { canManageSchedule } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
+import { CampaignType } from "@prisma/client";
 
 export async function GET() {
   const user = await getSession();
@@ -38,11 +39,19 @@ export async function POST(req: NextRequest) {
     return jsonError("Content phải ở trạng thái ready_to_air");
   }
 
+  const intervalMinutes =
+    body.intervalMinutes != null && Number(body.intervalMinutes) > 0
+      ? Number(body.intervalMinutes)
+      : null;
+  const type: CampaignType = intervalMinutes ? CampaignType.periodic : CampaignType.oneshot;
+  const startAt = body.startAt ? new Date(body.startAt) : new Date();
+  const endAt = body.endAt ? new Date(body.endAt) : null;
+
   const campaign = await prisma.campaign.create({
     data: {
       orgId: user.orgId,
       name: `Campaign — ${body.name}`,
-      type: "oneshot",
+      type,
     },
   });
 
@@ -50,7 +59,10 @@ export async function POST(req: NextRequest) {
     data: {
       campaignId: campaign.id,
       name: body.name,
-      startAt: body.startAt ? new Date(body.startAt) : new Date(),
+      startAt,
+      intervalMinutes,
+      nextRunAt: intervalMinutes ? startAt : null,
+      endAt,
       createdById: user.id,
       status: "scheduled",
       items: {
@@ -67,6 +79,7 @@ export async function POST(req: NextRequest) {
       },
     },
     include: {
+      campaign: true,
       items: true,
       targets: { include: { cluster: true } },
     },

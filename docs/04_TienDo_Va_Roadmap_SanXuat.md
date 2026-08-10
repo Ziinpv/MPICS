@@ -1,8 +1,8 @@
 # Tiến độ & lộ trình sản xuất — MPCIS
 
 > Cập nhật: **10 Aug 2026**  
-> Trạng thái: **Demo + TTVH P1–P3 + P0 + P1 media/audit (code)** · Next: validate tọa độ / staging deploy / P2 IoT.  
-> Repo: https://github.com/Ziinpv/MPICS · Commit gần nhất trên remote có thể chưa gồm P1 — commit local khi sẵn sàng.
+> Trạng thái: **Demo + TTVH + P0 + P1 + P2 MQTT demo + CI/periodic/timeout** · Next: staging deploy / TLS MQTT / TTS.  
+> Repo: https://github.com/Ziinpv/MPICS
 
 ---
 
@@ -14,9 +14,9 @@
 | Hội tụ UI TTVH P1–P3 | ✅ Đóng |
 | P0 Hardening (auth/audit/migrate/backup/staging env) | ✅ Code xong (~90%; còn quên MK + deploy staging máy chủ) |
 | Push GitHub `main` | ✅ |
-| Sẵn sàng production kỹ thuật | **~35%** |
+| Sẵn sàng production kỹ thuật | **~42%** |
 
-**Verdict:** Walkthrough demo ổn định local. Nền tảng hardening đủ để bắt đầu staging; chưa đủ go-live (thiếu object storage, IoT thật, CI/CD, UAT).
+**Verdict:** Walkthrough demo ổn định local. P1 media/audit + P2 MQTT demo + CI/jobs đã có trong code; còn staging host, TLS device, UAT.
 
 Local: http://localhost:3000 · Seed: `admin` / `user.xa1` / `user.xa2` · `Demo@123`  
 Windows: dùng `npm.cmd` nếu PowerShell chặn `npm.ps1`.
@@ -61,32 +61,33 @@ Windows: dùng `npm.cmd` nếu PowerShell chặn `npm.ps1`.
 |----------|------------|----------|
 | Bảo mật | Đổi MK, rate-limit, secret check, audit | Quên MK, HTTPS terminate, secret rotation ops |
 | DB | Migrate + backup script | Restore drill, monitoring disk |
-| Media | File/local key | **S3/MinIO** (P1) |
-| IoT | Simulator HTTP | MQTT/broker (P2) |
-| Quan sát | Health endpoint | Structured logs, metrics, alert |
-| Môi trường | `.env.staging.example` | Staging host + CI/CD + UAT |
+| Media | MinIO/S3 abstraction | Lifecycle/CDN prod |
+| IoT | MQTT broker + bridge + sim + basic auth | TLS, device credential, ACL |
+| Jobs | `jobs:run` timeout + periodic | Scheduler production (systemd/cron) |
+| Quan sát | Health endpoint + GitHub Actions CI | Structured logs, metrics, alert |
+| Môi trường | `.env.staging.example` | Staging host + UAT |
 
 ---
 
 ## 4. Lộ trình còn lại
 
-### P1 — Dữ liệu & GIS sản xuất (2–3 tuần) ← **next**
-1. Object storage ảnh địa điểm (MinIO/S3); gắn media khi PATCH
-2. UI Admin xem AuditLog
-3. Validate tọa độ trong phạm vi xã (optional lịch sử sửa)
-4. Phân quyền list/export đúng subtree org (siết thêm nếu cần)
+### P1 — Dữ liệu & GIS sản xuất ← **đã đóng phần lớn trong code**
+1. Object storage ảnh địa điểm (MinIO/S3); gắn media khi PATCH ✅
+2. UI Admin xem AuditLog ✅
+3. Validate tọa độ trong phạm vi xã ✅
+4. Phân quyền list/export đúng subtree org (siết thêm nếu cần) ⏳
 
 **Milestone:** User xã thao tác GIS ổn định trên staging với upload ảnh thật.
 
-### P2 — IoT & phát sóng thật (4–6 tuần)
-1. MQTT (hoặc gateway) thay simulator poll
-2. Device auth + heartbeat + lệnh 2 chiều
-3. Pipeline media/TTS; lịch định kỳ; ModerationReview đầy đủ
+### P2 — IoT & phát sóng (đang chạy demo)
+1. MQTT Mosquitto + bridge + sim ✅ (basic auth demo)
+2. Command timeout + lịch định kỳ + CI ✅
+3. TLS / device credential; pipeline media/TTS; ModerationReview đầy đủ ⏳
 
 **Milestone:** Path B với thiết bị lab / cụm thí điểm.
 
 ### P3 — Vận hành & UAT
-1. CI/CD, runbook; UAT cán bộ địa phương
+1. Deploy staging + runbook; UAT cán bộ địa phương
 2. Training; checklist go-live; SLA online thiết bị
 
 **Milestone:** Go-live pilot 1–2 xã.
@@ -124,17 +125,20 @@ Console MinIO: http://localhost:9001 (mpcis / mpcisminio)
 ### Việc còn lại
 
 1. Deploy staging theo [05_Staging_Checklist.md](./05_Staging_Checklist.md)  
-2. SMTP — **đã hỗ trợ** (Mailpit local / SMTP thật qua env); cần cấu hình `SMTP_*` trên staging  
-3. P2 MQTT — broker + bridge + sim (TLS/device auth còn lại)  
-4. TTS/media pipeline + lịch định kỳ  
+2. SMTP — cấu hình `SMTP_*` trên staging (Mailpit local đã có)  
+3. MQTT TLS + credential theo device — [06_MQTT_IoT_Demo.md](./06_MQTT_IoT_Demo.md)  
+4. TTS/media pipeline  
+
+**Đã ship thêm (10 Aug):** CI GitHub Actions · MQTT basic auth · command timeout · lịch định kỳ · `npm run jobs:run`
 
 Áp dụng local sau pull:
 
 ```bash
 docker compose up -d
-npm.cmd run db:push   # hoặc db:migrate
+npm.cmd run db:migrate   # hoặc db:push
 npm.cmd run db:generate
 npm.cmd run dev
+# optional: npm.cmd run mqtt:bridge · npm.cmd run sim:mqtt · npm.cmd run jobs:run
 ```
 
 ---

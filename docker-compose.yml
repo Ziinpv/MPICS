@@ -34,6 +34,7 @@ services:
       - "1883:1883"
     volumes:
       - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mosquitto/passwd:/mosquitto/config/passwd:ro
 
   # SMTP dev catcher — UI http://localhost:8025 · SMTP :1025
   mailpit:

@@ -339,21 +339,27 @@ model Campaign {
 }
 
 model BroadcastSchedule {
-  id          String         @id @default(cuid())
-  campaignId  String
-  campaign    Campaign       @relation(fields: [campaignId], references: [id])
-  name        String
-  startAt     DateTime
-  timezone    String         @default("Asia/Ho_Chi_Minh")
-  preempt     Boolean        @default(false)
-  status      ScheduleStatus @default(scheduled)
-  createdById String?
-  createdBy   User?          @relation(fields: [createdById], references: [id])
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id              String         @id @default(cuid())
+  campaignId      String
+  campaign        Campaign       @relation(fields: [campaignId], references: [id])
+  name            String
+  startAt         DateTime
+  /// Lặp lại mỗi N phút (null = oneshot)
+  intervalMinutes Int?
+  nextRunAt       DateTime?
+  endAt           DateTime?
+  timezone        String         @default("Asia/Ho_Chi_Minh")
+  preempt         Boolean        @default(false)
+  status          ScheduleStatus @default(scheduled)
+  createdById     String?
+  createdBy       User?          @relation(fields: [createdById], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   items   BroadcastItem[]
   targets ScheduleTarget[]
+
+  @@index([nextRunAt])
 }
 
 model BroadcastItem {
@@ -387,6 +393,7 @@ model DeviceCommand {
   status        CommandStatus @default(pending)
   scheduleId    String?
   createdAt     DateTime      @default(now())
+  sentAt        DateTime?
   ackedAt       DateTime?
 }
 

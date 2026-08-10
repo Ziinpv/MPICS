@@ -18,6 +18,8 @@ import {
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 const MQTT_URL = process.env.MQTT_URL || "mqtt://127.0.0.1:1883";
+const MQTT_USERNAME = process.env.MQTT_USERNAME || "mpcis";
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "mpcismqtt";
 const POLL_MS = Number(process.env.MQTT_BRIDGE_POLL_MS || 4000);
 
 type PendingCmd = {
@@ -112,11 +114,13 @@ async function pushPendingCommands(client: mqtt.MqttClient) {
 }
 
 console.log(`MPCIS MQTT bridge`);
-console.log(`  MQTT ${MQTT_URL}`);
+console.log(`  MQTT ${MQTT_URL} (user ${MQTT_USERNAME})`);
 console.log(`  API  ${BASE}`);
 
 const client = mqtt.connect(MQTT_URL, {
   clientId: `mpcis-bridge-${Math.random().toString(16).slice(2, 8)}`,
+  username: MQTT_USERNAME,
+  password: MQTT_PASSWORD,
   reconnectPeriod: 3000,
 });
 

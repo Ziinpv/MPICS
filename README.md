@@ -55,8 +55,9 @@ Mở http://localhost:3000
 1. Login `admin`
 2. **Nội dung** — tạo bài → Duyệt (`ready_to_air`)
 3. **Lịch phát** — chọn bài + cụm → Publish
-4. Terminal: `npm run sim` (trong `apps/web`) — heartbeat + ack `play`
+4. Terminal: `npm run sim` hoặc MQTT (`mqtt:bridge` + `sim:mqtt`) — heartbeat + ack `play`
 5. **Dashboard IoT** (`/admin/iot`) — lệnh gần đây `acked`
+6. Lịch định kỳ + `npm run jobs:run` (timeout lệnh stale)
 
 ### Admin TTVH-like (đã có)
 - Overview map/KPI, biểu đồ, list VH / TTTM / tín ngưỡng
@@ -77,7 +78,7 @@ cd apps/web && npm.cmd run sim
 ### MQTT (P2)
 
 ```bash
-# Broker đã có trong docker compose (port 1883)
+# Broker đã có trong docker compose (port 1883, auth mpcis/mpcismqtt)
 docker compose up -d mosquitto
 
 # Terminal 1 — bridge MQTT ↔ API
@@ -85,7 +86,12 @@ npm.cmd run mqtt:bridge
 
 # Terminal 2 — giả lập thiết bị MQTT
 npm.cmd run sim:mqtt
+
+# Jobs: timeout lệnh + lịch định kỳ
+npm.cmd run jobs:run
 ```
+
+Chi tiết: [docs/06_MQTT_IoT_Demo.md](docs/06_MQTT_IoT_Demo.md)
 
 Topics: `mpcis/devices/{code}/heartbeat|command|ack`
 

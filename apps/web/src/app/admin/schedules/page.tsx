@@ -10,6 +10,8 @@ export default function AdminSchedulesPage() {
   const [name, setName] = useState("Lịch phát demo");
   const [contentId, setContentId] = useState("");
   const [clusterId, setClusterId] = useState("");
+  const [mode, setMode] = useState<"oneshot" | "periodic">("oneshot");
+  const [intervalMinutes, setIntervalMinutes] = useState(30);
   const [msg, setMsg] = useState("");
 
   async function load() {
@@ -36,12 +38,17 @@ export default function AdminSchedulesPage() {
     const res = await fetch("/api/schedules", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, contentId, clusterId }),
+      body: JSON.stringify({
+        name,
+        contentId,
+        clusterId,
+        intervalMinutes: mode === "periodic" ? intervalMinutes : null,
+      }),
     });
     const data = await res.json();
     if (!res.ok) setMsg(data.error);
     else {
-      setMsg("Đã tạo lịch");
+      setMsg(mode === "periodic" ? "Đã tạo lịch định kỳ" : "Đã tạo lịch oneshot");
       load();
     }
   }
@@ -51,23 +58,70 @@ export default function AdminSchedulesPage() {
     const data = await res.json();
     if (!res.ok) setMsg(data.error);
     else {
-      setMsg(`Publish OK — tạo ${data.commandsCreated} lệnh play (chờ simulator ack)`);
+      setMsg(
+        data.isPeriodic
+          ? `Publish OK — ${data.commandsCreated} lệnh · lần tới ${data.nextRunAt ? new Date(data.nextRunAt).toLocaleString("vi-VN") : "—"}`
+          : `Publish OK — tạo ${data.commandsCreated} lệnh play (chờ simulator ack)`,
+      );
+      load();
+    }
+  }
+
+  async function runJobs() {
+        const res = await fetch("/api/cron/tick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+    const data = await res.json();
+    if (!res.ok) setMsg(data.error || "Cron lỗi (cần đăng nhập admin)");
+    else {
+      setMsg(
+        `Jobs: timeout=${data.timeout?.timedOut ?? 0} · periodic=${data.periodic?.length ?? 0}`,
+      );
       load();
     }
   }
 
   return (
     <div>
-      <PageHeader title="Lịch phát sóng" />
+      <PageHeader
+        title="Lịch phát sóng"
+        subtitle="Oneshot hoặc định kỳ (phút) · Jobs: timeout lệnh + chạy lịch đến hạn"
+        actions={
+          <Btn variant="secondary" onClick={runJobs}>
+            Chạy jobs ngay
+          </Btn>
+        }
+      />
       {msg && <p className="mb-3 text-sm text-teal-700">{msg}</p>}
 
       <Card className="mb-6">
-        <h2 className="mb-3 font-medium">Tạo lịch oneshot</h2>
+        <h2 className="mb-3 font-medium">Tạo lịch</h2>
         <form onSubmit={createSchedule} className="grid gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
             <label>Tên lịch</label>
             <input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
+          <div>
+            <label>Loại</label>
+            <select value={mode} onChange={(e) => setMode(e.target.value as "oneshot" | "periodic")}>
+              <option value="oneshot">Oneshot (1 lần)</option>
+              <option value="periodic">Định kỳ</option>
+            </select>
+          </div>
+          {mode === "periodic" && (
+            <div>
+              <label>Chu kỳ (phút)</label>
+              <input
+                type="number"
+                min={1}
+                value={intervalMinutes}
+                onChange={(e) => setIntervalMinutes(Number(e.target.value))}
+                required
+              />
+            </div>
+          )}
           <div>
             <label>Bài ready_to_air</label>
             <select value={contentId} onChange={(e) => setContentId(e.target.value)} required>
@@ -101,24 +155,50 @@ export default function AdminSchedulesPage() {
           <thead>
             <tr>
               <th>Tên</th>
+              <th>Loại</th>
               <th>Trạng thái</th>
               <th>Cụm</th>
-              <th>Bắt đầu</th>
+              <th>Lịch</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {schedules.map((s) => (
               <tr key={s.id}>
-                <td>{s.name}</td>
+                <td className="font-medium">{s.name}</td>
+                <td className="text-xs">
+                  {s.campaign?.type || "—"}
+                  {s.intervalMinutes ? ` · ${s.intervalMinutes}p` : ""}
+                </td>
                 <td>{s.status}</td>
-                <td>{s.targets?.map((t: any) => t.cluster?.name).join(", ")}</td>
-                <td>{new Date(s.startAt).toLocaleString("vi-VN")}</td>
+                <td className="text-sm text-slate-600">
+                  {(s.targets || [])
+                    .filter((t: any) => t.include)
+                    .map((t: any) => t.cluster?.name)
+                    .join(", ") || "—"}
+                </td>
+                <td className="text-xs text-slate-500">
+                  {s.nextRunAt
+                    ? `next ${new Date(s.nextRunAt).toLocaleString("vi-VN")}`
+                    : new Date(s.startAt).toLocaleString("vi-VN")}
+                </td>
                 <td>
-                  {s.status === "scheduled" && <Btn onClick={() => publish(s.id)}>Publish</Btn>}
+                  {(s.status === "scheduled" ||
+                    (s.campaign?.type === "periodic" && s.status !== "cancelled")) && (
+                    <Btn className="!px-2 !py-1 text-xs" onClick={() => publish(s.id)}>
+                      Publish
+                    </Btn>
+                  )}
                 </td>
               </tr>
             ))}
+            {!schedules.length && (
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-400">
+                  Chưa có lịch
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </Card>

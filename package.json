@@ -13,6 +13,8 @@
     "db:backup": "powershell -ExecutionPolicy Bypass -File ./scripts/backup-db.ps1",
     "sim": "npm --prefix apps/web run sim",
     "sim:mqtt": "npm --prefix apps/web run sim:mqtt",
-    "mqtt:bridge": "npm --prefix apps/web run mqtt:bridge"
+    "mqtt:bridge": "npm --prefix apps/web run mqtt:bridge",
+    "jobs:run": "npm --prefix apps/web run jobs:run",
+    "cron:tick": "npm --prefix apps/web run cron:tick"
   }
 }

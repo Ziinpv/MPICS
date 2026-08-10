@@ -14,7 +14,9 @@
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "sim": "tsx scripts/device-sim.ts",
     "sim:mqtt": "tsx scripts/device-sim-mqtt.ts",
-    "mqtt:bridge": "tsx scripts/mqtt-bridge.ts"
+    "mqtt:bridge": "tsx scripts/mqtt-bridge.ts",
+    "jobs:run": "tsx --env-file=.env scripts/jobs-run.ts",
+    "cron:tick": "tsx --env-file=.env scripts/cron-tick.ts"
   },
   "prisma": {
     "schema": "prisma/schema.prisma",

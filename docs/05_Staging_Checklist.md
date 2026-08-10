@@ -64,6 +64,7 @@ npm.cmd run start
 
 ## Chưa có trên staging (backlog)
 
-- CI/CD pipeline
-- MQTT TLS / device credential
+- Deploy staging host + CD (CI GitHub Actions đã có trên `main`)
+- `CRON_SECRET` + cron `jobs:run` / `/api/cron/tick` (timeout + lịch định kỳ)
+- MQTT TLS / device credential (basic auth demo local đã có)
 - TTS / media pipeline

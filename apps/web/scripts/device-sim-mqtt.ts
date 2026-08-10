@@ -14,17 +14,21 @@ import {
 } from "../src/lib/mqttTopics";
 
 const MQTT_URL = process.env.MQTT_URL || "mqtt://127.0.0.1:1883";
+const MQTT_USERNAME = process.env.MQTT_USERNAME || "mpcis";
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "mpcismqtt";
 const CODES = (process.env.DEVICE_CODES || "COM-XA1-01,COM-XA1-02,COM-XA2-01")
   .split(",")
   .map((c) => c.trim())
   .filter(Boolean);
 const HB_MS = Number(process.env.MQTT_HB_MS || 8000);
 
-console.log(`MPCIS MQTT device sim → ${MQTT_URL}`);
+console.log(`MPCIS MQTT device sim → ${MQTT_URL} (user ${MQTT_USERNAME})`);
 console.log(`Devices: ${CODES.join(", ")}`);
 
 const client = mqtt.connect(MQTT_URL, {
   clientId: `mpcis-devsim-${Math.random().toString(16).slice(2, 8)}`,
+  username: MQTT_USERNAME,
+  password: MQTT_PASSWORD,
   reconnectPeriod: 3000,
 });
 
