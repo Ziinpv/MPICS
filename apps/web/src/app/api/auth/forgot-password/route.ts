@@ -65,8 +65,34 @@ export async function POST(req: NextRequest) {
   });
 
   const resetUrl = `${appPublicBaseUrl()}/reset-password?token=${token}`;
-  // Chưa có SMTP: log server để ops / demo
   console.info(`[password-reset] user=${user.username} url=${resetUrl}`);
+
+  let mailSent = false;
+  let mailError: string | null = null;
+  if (user.email) {
+    try {
+      const { sendMail, smtpConfigured } = await import("@/lib/mail");
+      if (smtpConfigured()) {
+        await sendMail({
+          to: user.email,
+          subject: "[MPCIS] Đặt lại mật khẩu",
+          text: [
+            `Xin chào ${user.fullName},`,
+            "",
+            "Bạn (hoặc quản trị) đã yêu cầu đặt lại mật khẩu MPCIS.",
+            `Mở liên kết sau (hết hạn ${expiresAt.toLocaleString("vi-VN")}):`,
+            resetUrl,
+            "",
+            "Nếu không phải bạn, hãy bỏ qua email này.",
+          ].join("\n"),
+        });
+        mailSent = true;
+      }
+    } catch (err: any) {
+      mailError = err?.message || "SMTP error";
+      console.error("[password-reset] SMTP", mailError);
+    }
+  }
 
   await writeAuditLog({
     actor: {
@@ -81,15 +107,28 @@ export async function POST(req: NextRequest) {
     action: "auth.forgot_password",
     entityType: "User",
     entityId: user.id,
-    meta: { found: true, expiresAt: expiresAt.toISOString() },
+    meta: {
+      found: true,
+      expiresAt: expiresAt.toISOString(),
+      mailSent,
+      mailError,
+      hasEmail: Boolean(user.email),
+    },
     ip,
   });
 
   return jsonOk({
     ok: true,
-    message: generic,
+    message: mailSent
+      ? "Nếu tài khoản tồn tại và có email, hướng dẫn đặt lại mật khẩu đã được gửi."
+      : generic,
     ...(exposeResetLinkInResponse()
-      ? { resetUrl, expiresAt, demoHint: "Chỉ hiện link trên môi trường demo/dev" }
-      : {}),
+      ? {
+          resetUrl,
+          expiresAt,
+          mailSent,
+          demoHint: "Chỉ hiện link trên môi trường demo/dev",
+        }
+      : { mailSent }),
   });
 }

@@ -47,7 +47,7 @@ npm.cmd run start
 - [ ] `GET /api/health` trả `ok: true`
 - [ ] Login admin → bắt buộc đổi MK nếu seed flag bật
 - [ ] Upload ảnh địa điểm lên MinIO
-- [ ] Quên MK: tạo token, đặt lại (SMTP sau — hiện log server)
+- [ ] Quên MK: tạo token, đặt lại; SMTP gửi được (hoặc Mailpit trên lab)
 
 ## 5. Bảo mật smoke test
 
@@ -64,6 +64,6 @@ npm.cmd run start
 
 ## Chưa có trên staging (backlog)
 
-- SMTP gửi email quên MK thật
 - CI/CD pipeline
-- MQTT / IoT thật (P2)
+- MQTT TLS / device credential
+- TTS / media pipeline

@@ -15,7 +15,8 @@ Tài liệu thiết kế kỹ thuật cho **MobiFone Public Communication & Info
 | 4 | [Tiến độ & lộ trình sản xuất](./04_TienDo_Va_Roadmap_SanXuat.md) | Demo OK · P0→P3 production |
 | 5 | [Checklist staging](./05_Staging_Checklist.md) | Deploy staging nội bộ |
 | 6 | [MQTT IoT demo](./06_MQTT_IoT_Demo.md) | P2 broker + bridge + sim |
-| 7 | [10 nghiệp vụ cơ bản](./nghiepvu/README.md) | Chi tiết từng domain |
+| 7 | [SMTP quên MK](./07_SMTP_Forgot_Password.md) | Mailpit / SMTP thật |
+| 8 | [10 nghiệp vụ cơ bản](./nghiepvu/README.md) | Chi tiết từng domain |
 
 ## 10 nghiệp vụ
 
