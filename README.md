@@ -108,4 +108,6 @@ JWT_SECRET=mpcis-demo-secret-change-me
 - Upload ảnh → MinIO (hoặc local `public/uploads`); sửa địa điểm gắn media khi Lưu
 - Admin **Nhật ký hệ thống**: `/admin/audit`
 - Validate tọa độ theo bbox xã (Lạc Dương / Đơn Dương) — tắt bằng `GEO_VALIDATION=0`
+- Quên mật khẩu: `/forgot-password` → link đặt lại (demo hiện trên UI; staging: log server)
+- Staging checklist: [`docs/05_Staging_Checklist.md`](docs/05_Staging_Checklist.md)
 

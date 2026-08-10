@@ -50,8 +50,8 @@ Windows: dùng `npm.cmd` nếu PowerShell chặn `npm.ps1`.
 | Script backup `scripts/backup-db.ps1` / `.sh` | ✅ |
 | `.env.staging.example` + tắt demo hints | ✅ |
 | Healthcheck `GET /api/health` | ✅ |
-| Quên mật khẩu / email reset | ⏳ Pending |
-| Deploy staging trên máy chủ thật | ⏳ Pending |
+| Quên mật khẩu / email reset | ✅ Token + `/forgot-password` (SMTP backlog; demo trả link) |
+| Deploy staging trên máy chủ thật | ⏳ Checklist sẵn — [05_Staging_Checklist.md](./05_Staging_Checklist.md) |
 
 ---
 
@@ -123,9 +123,9 @@ Console MinIO: http://localhost:9001 (mpcis / mpcisminio)
 
 ### Việc còn lại
 
-1. Deploy staging checklist  
-2. P2 MQTT / IoT thật  
-3. Quên mật khẩu / email reset (P0 còn lại)  
+1. Deploy staging theo [05_Staging_Checklist.md](./05_Staging_Checklist.md)  
+2. SMTP gửi email quên MK thật  
+3. P2 MQTT / IoT thật  
 
 Áp dụng local sau pull:
 

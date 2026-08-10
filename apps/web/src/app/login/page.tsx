@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogIn, ShieldCheck, UserRound } from "lucide-react";
 import { ICON_SIZE_PX } from "@/lib/iconMap";
@@ -84,6 +85,12 @@ export default function LoginPage() {
             {loading ? "Đang đăng nhập…" : "Đăng nhập"}
           </button>
         </form>
+
+        <p className="mt-4 text-center text-sm">
+          <Link href="/forgot-password" className="text-brand-700 hover:underline">
+            Quên mật khẩu?
+          </Link>
+        </p>
 
         {showDemoHints && (
           <div className="mt-6 space-y-3 border-t border-brand-100 pt-5">

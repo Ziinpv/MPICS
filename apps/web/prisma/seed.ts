@@ -39,6 +39,7 @@ async function main() {
   await prisma.location.deleteMany();
   await prisma.locationTypeDef.deleteMany();
   await prisma.auditLog.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
   await prisma.content.deleteMany();
   await prisma.mediaAsset.deleteMany();
   await prisma.device.deleteMany();

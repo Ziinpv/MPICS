@@ -164,6 +164,20 @@ model User {
   incidents       IncidentReport[] @relation("Reporter")
   assignedIncidents IncidentReport[] @relation("Assignee")
   schedules       BroadcastSchedule[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 /// Nhật ký thao tác tối thiểu (P0 hardening)
