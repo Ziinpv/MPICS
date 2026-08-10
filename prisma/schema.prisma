@@ -58,6 +58,7 @@ enum ContentStatus {
   draft
   pending
   approved
+  tts_processing
   ready_to_air
   rejected
   scheduled
@@ -152,6 +153,7 @@ model User {
   orgId        String
   org          Organization @relation(fields: [orgId], references: [id])
   status       String   @default("active")
+  /// Bắt buộc đổi mật khẩu trước khi dùng app (user mới / reset)
   mustChangePassword Boolean @default(false)
   passwordChangedAt   DateTime?
   createdAt    DateTime @default(now())
@@ -179,6 +181,7 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
+/// Nhật ký thao tác tối thiểu (P0 hardening)
 model AuditLog {
   id            String   @id @default(cuid())
   actorId       String?
@@ -228,6 +231,9 @@ model Device {
   lastSeenAt      DateTime?
   rssi            Int?
   volume          Int          @default(70)
+  /// MQTT username (= deviceCode). Password hash bcrypt; plaintext chỉ trả khi rotate.
+  mqttPasswordHash String?
+  mqttPasswordSetAt DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -265,7 +271,7 @@ model Location {
   media LocationMedia[]
 }
 
-/// Catalog chi tiết loại địa điểm (CRUD Admin)
+/// Catalog chi tiết loại địa điểm (CRUD Admin) — gắn nhóm LocationType
 model LocationTypeDef {
   id        String       @id @default(cuid())
   groupType LocationType
@@ -305,7 +311,8 @@ model Content {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  items BroadcastItem[]
+  items   BroadcastItem[]
+  ttsJobs TtsJob[]
 }
 
 model MediaAsset {
@@ -320,6 +327,32 @@ model MediaAsset {
 
   contents Content[]
   items    BroadcastItem[]
+  ttsJobs  TtsJob[]
+}
+
+enum TtsJobStatus {
+  queued
+  running
+  done
+  failed
+}
+
+model TtsJob {
+  id           String       @id @default(cuid())
+  contentId    String
+  content      Content      @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  status       TtsJobStatus @default(queued)
+  voice        String       @default("vi-VN-HoaiMyNeural")
+  driver       String       @default("edge")
+  error        String?
+  mediaAssetId String?
+  mediaAsset   MediaAsset?  @relation(fields: [mediaAssetId], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  finishedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([contentId])
 }
 
 model Campaign {
@@ -342,6 +375,7 @@ model BroadcastSchedule {
   campaign        Campaign       @relation(fields: [campaignId], references: [id])
   name            String
   startAt         DateTime
+  /// Lặp lại mỗi N phút (null = oneshot)
   intervalMinutes Int?
   nextRunAt       DateTime?
   endAt           DateTime?

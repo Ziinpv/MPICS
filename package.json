@@ -15,6 +15,7 @@
     "sim:mqtt": "npm --prefix apps/web run sim:mqtt",
     "mqtt:bridge": "npm --prefix apps/web run mqtt:bridge",
     "jobs:run": "npm --prefix apps/web run jobs:run",
-    "cron:tick": "npm --prefix apps/web run cron:tick"
+    "cron:tick": "npm --prefix apps/web run cron:tick",
+    "tts:worker": "npm --prefix apps/web run tts:worker"
   }
 }

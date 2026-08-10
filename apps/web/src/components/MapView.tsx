@@ -33,6 +33,8 @@ type Props = {
   pickMode?: boolean;
   pickPosition?: { lat: number; lng: number } | null;
   onPick?: (pos: { lat: number; lng: number }) => void;
+  /** Tăng khi GPS / sửa ô lat-lng để map nhảy theo */
+  recenterToken?: number;
 };
 
 export default function MapView(props: Props) {

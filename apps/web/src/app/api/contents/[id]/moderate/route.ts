@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { canModerateContent } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
+import { enqueueAndRunTts } from "@/lib/tts";
+import { writeAuditLog } from "@/lib/audit";
+import { clientIp } from "@/lib/rateLimit";
 
 type Ctx = { params: { id: string } };
 
@@ -17,21 +20,48 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!content) return jsonError("Not found", 404);
 
   if (action === "approve") {
-    const media = await prisma.mediaAsset.create({
-      data: {
-        storageKey: `mock/${params.id}.mp3`,
-        cdnUrl: `https://example.com/mock/${params.id}.mp3`,
-        durationSec: Math.max(30, Math.round(content.bodyPlain.length / 12)),
-        signature: `sig-${params.id}`,
-        checksum: `sum-${params.id}`,
-      },
-    });
-    const updated = await prisma.content.update({
+    if (!["draft", "pending", "approved"].includes(content.status)) {
+      return jsonError(`Không duyệt được ở trạng thái ${content.status}`);
+    }
+
+    await prisma.content.update({
       where: { id: params.id },
-      data: { status: "ready_to_air", mediaAssetId: media.id },
-      include: { mediaAsset: true },
+      data: { status: "tts_processing" },
     });
-    return jsonOk({ content: updated });
+
+    try {
+      const { job, sync } = await enqueueAndRunTts(params.id, {
+        voice: body.voice,
+        sync: body.async !== true,
+      });
+      const updated = await prisma.content.findUnique({
+        where: { id: params.id },
+        include: { mediaAsset: true },
+      });
+
+      await writeAuditLog({
+        actor: user,
+        action: "content.approve_tts",
+        entityType: "Content",
+        entityId: params.id,
+        meta: { jobId: job.id, status: job.status, sync, driver: job.driver },
+        ip: clientIp(req),
+      });
+
+      return jsonOk({
+        content: updated,
+        ttsJob: job,
+        sync,
+        message:
+          job.status === "done"
+            ? "Đã duyệt + TTS xong → ready_to_air"
+            : job.status === "failed"
+              ? `TTS lỗi: ${job.error}`
+              : "Đã enqueue TTS (chạy npm run tts:worker)",
+      });
+    } catch (e: any) {
+      return jsonError(e?.message || "TTS thất bại", 500);
+    }
   }
 
   if (action === "reject") {
@@ -42,5 +72,21 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return jsonOk({ content: updated });
   }
 
-  return jsonError("action phải là approve|reject");
+  if (action === "retry_tts") {
+    if (!["approved", "tts_processing", "ready_to_air"].includes(content.status)) {
+      return jsonError("Chỉ retry TTS khi đã duyệt / processing");
+    }
+    try {
+      const { job } = await enqueueAndRunTts(params.id, { voice: body.voice, sync: true });
+      const updated = await prisma.content.findUnique({
+        where: { id: params.id },
+        include: { mediaAsset: true },
+      });
+      return jsonOk({ content: updated, ttsJob: job });
+    } catch (e: any) {
+      return jsonError(e?.message || "Retry TTS thất bại", 500);
+    }
+  }
+
+  return jsonError("action phải là approve|reject|retry_tts");
 }

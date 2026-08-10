@@ -85,3 +85,14 @@ td {
   background: transparent !important;
   border: none !important;
 }
+
+/* Chế độ chọn tọa độ trên bản đồ */
+.leaflet-container.mpcis-map-pick {
+  cursor: crosshair;
+}
+.leaflet-container.mpcis-map-pick .leaflet-marker-draggable {
+  cursor: grab;
+}
+.leaflet-container.mpcis-map-pick .leaflet-marker-draggable:active {
+  cursor: grabbing;
+}

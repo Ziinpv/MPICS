@@ -1,9 +1,11 @@
 /**
- * Device simulator qua MQTT (P2)
+ * Device simulator qua MQTT — mỗi deviceCode một connection (credential riêng)
  *
  * Usage:
  *   npm run sim:mqtt
- *   MQTT_URL=mqtt://127.0.0.1:1883 npm run sim:mqtt
+ *   MQTT_URL=mqtts://127.0.0.1:8883 MQTT_TLS_INSECURE=1 npm run sim:mqtt
+ *
+ * Password mặc định: dev-{deviceCode} (khớp scripts/gen-mqtt-passwd.ps1)
  */
 
 import mqtt from "mqtt";
@@ -14,33 +16,30 @@ import {
 } from "../src/lib/mqttTopics";
 
 const MQTT_URL = process.env.MQTT_URL || "mqtt://127.0.0.1:1883";
-const MQTT_USERNAME = process.env.MQTT_USERNAME || "mpcis";
-const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "mpcismqtt";
+const MQTT_TLS_INSECURE = process.env.MQTT_TLS_INSECURE === "1";
 const CODES = (process.env.DEVICE_CODES || "COM-XA1-01,COM-XA1-02,COM-XA2-01")
   .split(",")
   .map((c) => c.trim())
   .filter(Boolean);
 const HB_MS = Number(process.env.MQTT_HB_MS || 8000);
 
-console.log(`MPCIS MQTT device sim → ${MQTT_URL} (user ${MQTT_USERNAME})`);
-console.log(`Devices: ${CODES.join(", ")}`);
-
-const client = mqtt.connect(MQTT_URL, {
-  clientId: `mpcis-devsim-${Math.random().toString(16).slice(2, 8)}`,
-  username: MQTT_USERNAME,
-  password: MQTT_PASSWORD,
-  reconnectPeriod: 3000,
-});
-
-function subscribeCommands() {
-  for (const code of CODES) {
-    client.subscribe(mqttCommandTopic(code), { qos: 1 });
-  }
-  console.log("[sim-mqtt] subscribed command topics");
+function passFor(code: string) {
+  return process.env[`MQTT_PASS_${code}`] || process.env.MQTT_DEVICE_PASSWORD || `dev-${code}`;
 }
 
-function sendHeartbeats() {
-  for (const code of CODES) {
+console.log(`MPCIS MQTT device sim → ${MQTT_URL}`);
+console.log(`Devices: ${CODES.join(", ")} (user=deviceCode)`);
+
+for (const code of CODES) {
+  const client = mqtt.connect(MQTT_URL, {
+    clientId: `mpcis-dev-${code}-${Math.random().toString(16).slice(2, 6)}`,
+    username: code,
+    password: passFor(code),
+    reconnectPeriod: 3000,
+    rejectUnauthorized: !MQTT_TLS_INSECURE,
+  });
+
+  function sendHb() {
     const payload = JSON.stringify({
       rssi: -65 - Math.floor(Math.random() * 20),
       ts: new Date().toISOString(),
@@ -48,40 +47,35 @@ function sendHeartbeats() {
     client.publish(mqttHeartbeatTopic(code), payload, { qos: 0 });
     console.log(`[sim-mqtt] HB ${code}`);
   }
+
+  client.on("connect", () => {
+    console.log(`[sim-mqtt] connected ${code}`);
+    client.subscribe(mqttCommandTopic(code), { qos: 1 });
+    sendHb();
+  });
+
+  client.on("message", (topic, buf) => {
+    try {
+      if (topic !== mqttCommandTopic(code)) return;
+      const msg = JSON.parse(buf.toString("utf8")) as { id?: string; commandType?: string };
+      if (!msg.id) return;
+      console.log(`[sim-mqtt] CMD ${code} ← ${msg.commandType}`);
+      setTimeout(() => {
+        client.publish(
+          mqttAckTopic(code),
+          JSON.stringify({ commandId: msg.id, status: "acked" }),
+          { qos: 1 },
+        );
+        console.log(`[sim-mqtt] ACK ${code}`);
+      }, 400);
+    } catch (err) {
+      console.error(`[sim-mqtt] bad message ${code}`, err);
+    }
+  });
+
+  client.on("error", (err) => console.error(`[sim-mqtt] ${code}`, err.message));
+
+  setInterval(() => {
+    if (client.connected) sendHb();
+  }, HB_MS);
 }
-
-client.on("connect", () => {
-  console.log("[sim-mqtt] connected");
-  subscribeCommands();
-  sendHeartbeats();
-});
-
-client.on("message", (topic, buf) => {
-  try {
-    const msg = JSON.parse(buf.toString("utf8")) as {
-      id?: string;
-      commandType?: string;
-      payload?: unknown;
-    };
-    const code = CODES.find((c) => topic === mqttCommandTopic(c));
-    if (!code || !msg.id) return;
-    console.log(`[sim-mqtt] CMD ${code} ← ${msg.commandType}`, msg.payload || {});
-    // Giả lập xử lý ngắn rồi ack
-    setTimeout(() => {
-      client.publish(
-        mqttAckTopic(code),
-        JSON.stringify({ commandId: msg.id, status: "acked" }),
-        { qos: 1 },
-      );
-      console.log(`[sim-mqtt] ACK ${code} ${msg.commandType}`);
-    }, 400);
-  } catch (err) {
-    console.error("[sim-mqtt] bad message", err);
-  }
-});
-
-client.on("error", (err) => console.error("[sim-mqtt] error", err.message));
-
-setInterval(() => {
-  if (client.connected) sendHeartbeats();
-}, HB_MS);

@@ -1,0 +1,15 @@
+user bridge
+topic readwrite mpcis/devices/#
+
+user COM-XA1-01
+topic readwrite mpcis/devices/COM-XA1-01/#
+
+user COM-XA1-02
+topic readwrite mpcis/devices/COM-XA1-02/#
+
+user COM-XA1-03
+topic readwrite mpcis/devices/COM-XA1-03/#
+
+user COM-XA2-01
+topic readwrite mpcis/devices/COM-XA2-01/#
+

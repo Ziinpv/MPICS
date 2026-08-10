@@ -11,6 +11,11 @@ apps/web/node_modules
 apps/web/.next
 .env
 apps/web/.env
+apps/web/.env.staging
+
+# MQTT lab certs (generate via scripts/gen-mqtt-certs.ps1)
+infra/mosquitto/certs/*
+!infra/mosquitto/certs/.gitkeep
 
 # OS
 .DS_Store

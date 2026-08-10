@@ -11,7 +11,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import type { LatLngExpression } from "leaflet";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import type { MapMarker } from "./MapView";
 import { buildLeafletMarkerHtml } from "@/lib/iconMap";
@@ -24,24 +24,59 @@ const defaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
+const pickIcon = L.icon({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
 function PickHandler({ onPick }: { onPick?: (pos: { lat: number; lng: number }) => void }) {
   useMapEvents({
     click(e) {
+      // Bỏ qua nếu click vào marker/control (target không phải map pane)
+      const t = e.originalEvent?.target as HTMLElement | null;
+      if (t?.closest?.(".leaflet-marker-icon, .leaflet-control, a")) return;
       onPick?.({ lat: e.latlng.lat, lng: e.latlng.lng });
     },
   });
   return null;
 }
 
-function Recenter({ center, zoom }: { center: LatLngExpression; zoom: number }) {
+function MapCursor({ pickMode }: { pickMode?: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    if (pickMode) el.classList.add("mpcis-map-pick");
+    else el.classList.remove("mpcis-map-pick");
+    return () => el.classList.remove("mpcis-map-pick");
+  }, [map, pickMode]);
+  return null;
+}
+
+function Recenter({
+  center,
+  zoom,
+  token,
+}: {
+  center: LatLngExpression;
+  zoom: number;
+  /** Chỉ recenter khi token đổi (GPS / nhập tay / mount) — tránh nhảy khi click map */
+  token: number;
+}) {
   const map = useMap();
   const lat = Array.isArray(center) ? Number(center[0]) : (center as L.LatLng).lat;
   const lng = Array.isArray(center) ? Number(center[1]) : (center as L.LatLng).lng;
+  const lastToken = useRef<number | null>(null);
 
   useEffect(() => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (lastToken.current === token) return;
+    lastToken.current = token;
     map.setView([lat, lng], zoom, { animate: true });
-  }, [lat, lng, zoom, map]);
+  }, [lat, lng, zoom, token, map]);
   return null;
 }
 
@@ -64,6 +99,8 @@ type Props = {
   pickMode?: boolean;
   pickPosition?: { lat: number; lng: number } | null;
   onPick?: (pos: { lat: number; lng: number }) => void;
+  /** Tăng khi cần ép map nhảy tới center (GPS / sửa lat lng) */
+  recenterToken?: number;
   onError?: (msg: string) => void;
 };
 
@@ -75,6 +112,7 @@ export default function MapInner({
   pickMode,
   pickPosition,
   onPick,
+  recenterToken = 0,
   onError,
 }: Props) {
   useEffect(() => {
@@ -101,7 +139,8 @@ export default function MapInner({
       style={{ height: "100%", minHeight: height, width: "100%" }}
       scrollWheelZoom
     >
-      <Recenter center={center} zoom={zoom} />
+      <Recenter center={center} zoom={zoom} token={recenterToken} />
+      <MapCursor pickMode={pickMode} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -144,7 +183,24 @@ export default function MapInner({
           </Marker>
         );
       })}
-      {pickPosition && (
+      {pickMode && pickPosition && (
+        <Marker
+          position={[pickPosition.lat, pickPosition.lng]}
+          icon={pickIcon}
+          draggable
+          eventHandlers={{
+            dragend(e) {
+              const ll = e.target.getLatLng();
+              onPick?.({ lat: ll.lat, lng: ll.lng });
+            },
+          }}
+        >
+          <Popup autoClose={false} closeOnClick={false}>
+            Kéo marker hoặc click bản đồ để chọn vị trí
+          </Popup>
+        </Marker>
+      )}
+      {!pickMode && pickPosition && (
         <CircleMarker
           center={[pickPosition.lat, pickPosition.lng]}
           radius={10}

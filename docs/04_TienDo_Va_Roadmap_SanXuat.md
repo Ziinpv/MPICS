@@ -1,7 +1,7 @@
 # Tiến độ & lộ trình sản xuất — MPCIS
 
 > Cập nhật: **10 Aug 2026**  
-> Trạng thái: **Demo + TTVH + P0 + P1 + P2 MQTT demo + CI/periodic/timeout** · Next: staging deploy / TLS MQTT / TTS.  
+> Trạng thái: **Staging pack + MQTT TLS/ACL + edge-tts pipeline (code)** · Next: SSH deploy host.  
 > Repo: https://github.com/Ziinpv/MPICS
 
 ---
@@ -148,4 +148,6 @@ npm.cmd run dev
 - Plan demo: [03_Plan_MVP_Demo.md](./03_Plan_MVP_Demo.md)
 - Chạy local: [../README.md](../README.md)
 - Nghiệp vụ: [nghiepvu/README.md](./nghiepvu/README.md)
+- Staging: [08_Staging_Deploy.md](./08_Staging_Deploy.md)
+- TTS: [09_TTS_Media_Pipeline.md](./09_TTS_Media_Pipeline.md)
 - Canvas: `canvases/mpics-progress-2026-08.canvas.tsx`

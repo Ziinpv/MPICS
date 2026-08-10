@@ -53,6 +53,7 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
   const [note, setNote] = useState("");
   const [pick, setPick] = useState<{ lat: number; lng: number } | null>(DA_LAT_CENTER);
   const [mapZoom, setMapZoom] = useState(13);
+  const [recenterToken, setRecenterToken] = useState(0);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [photoKeys, setPhotoKeys] = useState<string[]>([]);
   const [msg, setMsg] = useState("");
@@ -117,6 +118,7 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
         setCommuneId(loc.orgId || "");
         setPick({ lat: loc.lat, lng: loc.lng });
         setMapZoom(GPS_ZOOM);
+        setRecenterToken((t) => t + 1);
         setPhotoKeys((loc.media || []).map((m: any) => m.storageKey));
         if (loc.org) {
           setOrgRef({ name: loc.org.name, code: loc.org.code, path: loc.org.path });
@@ -400,15 +402,20 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
 
         <Card>
           <h2 className="mb-2 font-medium">Tọa độ trên bản đồ</h2>
-          <div className="mb-3">
+          <p className="mb-3 text-sm text-slate-600">
+            <strong>Click</strong> bản đồ hoặc <strong>kéo marker</strong> để chỉnh vị trí. GPS chỉ dùng khi đang tại hiện trường.
+          </p>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             <GpsLocateButton
               onLocated={({ lat, lng, accuracy }) => {
                 setPick({ lat, lng });
                 setMapZoom(GPS_ZOOM);
+                setRecenterToken((t) => t + 1);
                 setGpsAccuracy(accuracy);
                 setMsg("");
               }}
             />
+            <span className="text-xs text-slate-500">Con trỏ chữ thập = chọn điểm</span>
           </div>
           <div>
             <label className="flex items-center gap-1.5">
@@ -426,6 +433,7 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
                     const lat = Number(e.target.value);
                     if (!Number.isFinite(lat)) return;
                     setPick((prev) => ({ lat, lng: prev?.lng ?? DA_LAT_CENTER.lng }));
+                    setRecenterToken((t) => t + 1);
                     setGpsAccuracy(null);
                   }}
                   required
@@ -441,6 +449,7 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
                     const lng = Number(e.target.value);
                     if (!Number.isFinite(lng)) return;
                     setPick((prev) => ({ lat: prev?.lat ?? DA_LAT_CENTER.lat, lng }));
+                    setRecenterToken((t) => t + 1);
                     setGpsAccuracy(null);
                   }}
                   required
@@ -451,6 +460,7 @@ export function LocationEditor({ locationId, backHref, allowOrgChange = false }:
           <MapView
             pickMode
             pickPosition={pick}
+            recenterToken={recenterToken}
             onPick={(pos) => {
               setPick(pos);
               setGpsAccuracy(null);

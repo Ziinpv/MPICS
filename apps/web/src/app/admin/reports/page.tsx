@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { PageHeader, Card, Btn } from "@/components/ui";
-import { LOCATION_TYPE_OPTIONS } from "@/lib/labels";
 import { LocationTypeSelect } from "@/components/DeviceTypeSelect";
 import { ActionIcon } from "@/components/ActionIcon";
 
@@ -38,8 +37,8 @@ export default function AdminReportsPage() {
             Người tạo, Số ảnh, Lat, Lng
           </p>
           <p className="mt-2 text-xs text-slate-400">
-            File UTF-8 (BOM) — mở tốt trên Excel. Có thể lọc:{" "}
-            {LOCATION_TYPE_OPTIONS.map((o) => o.label).join(", ")}.
+            File CSV UTF-8, cột tách bằng dấu <strong>;</strong> (chuẩn Excel Việt Nam). Mở trực tiếp bằng
+            Excel — không cần Text Import.
           </p>
         </div>
         <Btn onClick={exportCsv}>

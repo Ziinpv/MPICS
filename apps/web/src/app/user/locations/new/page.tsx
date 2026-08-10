@@ -37,6 +37,7 @@ export default function NewLocationPage() {
   const [operationStatus, setOperationStatus] = useState("active");
   const [pick, setPick] = useState<{ lat: number; lng: number } | null>(DA_LAT_CENTER);
   const [mapZoom, setMapZoom] = useState(13);
+  const [recenterToken, setRecenterToken] = useState(0);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [photoKeys, setPhotoKeys] = useState<string[]>([]);
   const [msg, setMsg] = useState("");
@@ -348,19 +349,22 @@ export default function NewLocationPage() {
 
         <Card>
           <h2 className="mb-2 font-medium">Chọn tọa độ trên bản đồ</h2>
-          <p className="mb-3 text-sm text-slate-500">
-            Lấy GPS thiết bị hoặc click lên map để chọn vị trí
+          <p className="mb-3 text-sm text-slate-600">
+            <strong>Click</strong> lên bản đồ hoặc <strong>kéo marker</strong> để chọn đúng vị trí.
+            Nút GPS chỉ hỗ trợ khi đang đứng tại hiện trường.
           </p>
 
-          <div className="mb-3">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             <GpsLocateButton
               onLocated={({ lat, lng, accuracy }) => {
                 setPick({ lat, lng });
                 setMapZoom(GPS_ZOOM);
+                setRecenterToken((t) => t + 1);
                 setGpsAccuracy(accuracy);
                 setMsg("");
               }}
             />
+            <span className="text-xs text-slate-500">Con trỏ bản đồ dạng chữ thập = chế độ chọn điểm</span>
           </div>
 
           <div>
@@ -379,6 +383,7 @@ export default function NewLocationPage() {
                   const lat = Number(e.target.value);
                   if (!Number.isFinite(lat)) return;
                   setPick((prev) => ({ lat, lng: prev?.lng ?? DA_LAT_CENTER.lng }));
+                  setRecenterToken((t) => t + 1);
                   setGpsAccuracy(null);
                 }}
                 required
@@ -394,6 +399,7 @@ export default function NewLocationPage() {
                   const lng = Number(e.target.value);
                   if (!Number.isFinite(lng)) return;
                   setPick((prev) => ({ lat: prev?.lat ?? DA_LAT_CENTER.lat, lng }));
+                  setRecenterToken((t) => t + 1);
                   setGpsAccuracy(null);
                 }}
                 required
@@ -405,6 +411,7 @@ export default function NewLocationPage() {
           <MapView
             pickMode
             pickPosition={pick}
+            recenterToken={recenterToken}
             onPick={(pos) => {
               setPick(pos);
               setGpsAccuracy(null);

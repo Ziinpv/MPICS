@@ -58,6 +58,7 @@ enum ContentStatus {
   draft
   pending
   approved
+  tts_processing
   ready_to_air
   rejected
   scheduled
@@ -230,6 +231,9 @@ model Device {
   lastSeenAt      DateTime?
   rssi            Int?
   volume          Int          @default(70)
+  /// MQTT username (= deviceCode). Password hash bcrypt; plaintext chỉ trả khi rotate.
+  mqttPasswordHash String?
+  mqttPasswordSetAt DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -307,7 +311,8 @@ model Content {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  items BroadcastItem[]
+  items   BroadcastItem[]
+  ttsJobs TtsJob[]
 }
 
 model MediaAsset {
@@ -322,6 +327,32 @@ model MediaAsset {
 
   contents Content[]
   items    BroadcastItem[]
+  ttsJobs  TtsJob[]
+}
+
+enum TtsJobStatus {
+  queued
+  running
+  done
+  failed
+}
+
+model TtsJob {
+  id           String       @id @default(cuid())
+  contentId    String
+  content      Content      @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  status       TtsJobStatus @default(queued)
+  voice        String       @default("vi-VN-HoaiMyNeural")
+  driver       String       @default("edge")
+  error        String?
+  mediaAssetId String?
+  mediaAsset   MediaAsset?  @relation(fields: [mediaAssetId], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  finishedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([contentId])
 }
 
 model Campaign {

@@ -18,8 +18,9 @@ import {
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 const MQTT_URL = process.env.MQTT_URL || "mqtt://127.0.0.1:1883";
-const MQTT_USERNAME = process.env.MQTT_USERNAME || "mpcis";
-const MQTT_PASSWORD = process.env.MQTT_PASSWORD || "mpcismqtt";
+const MQTT_USERNAME = process.env.MQTT_USERNAME || process.env.MQTT_BRIDGE_USER || "bridge";
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD || process.env.MQTT_BRIDGE_PASSWORD || "mpcisbridge";
+const MQTT_TLS_INSECURE = process.env.MQTT_TLS_INSECURE === "1";
 const POLL_MS = Number(process.env.MQTT_BRIDGE_POLL_MS || 4000);
 
 type PendingCmd = {
@@ -122,6 +123,7 @@ const client = mqtt.connect(MQTT_URL, {
   username: MQTT_USERNAME,
   password: MQTT_PASSWORD,
   reconnectPeriod: 3000,
+  rejectUnauthorized: !MQTT_TLS_INSECURE,
 });
 
 client.on("connect", () => {

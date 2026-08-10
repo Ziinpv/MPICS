@@ -83,6 +83,7 @@ export const CONTENT_STATUS_LABELS: Record<string, string> = {
   draft: "Nháp",
   pending: "Chờ duyệt",
   approved: "Đã duyệt",
+  tts_processing: "Đang TTS",
   ready_to_air: "Sẵn sàng phát",
   rejected: "Từ chối",
   scheduled: "Đã lên lịch",

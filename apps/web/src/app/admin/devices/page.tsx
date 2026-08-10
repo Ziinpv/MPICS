@@ -37,10 +37,26 @@ export default function AdminDevicesPage() {
     else setMsg(`Đã tạo lệnh ${commandType} (${data.command.status}) — simulator sẽ ack`);
   }
 
+  async function rotateMqtt(id: string, code: string) {
+    setMsg("");
+    const res = await fetch(`/api/devices/${id}/mqtt-credentials`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const data = await res.json();
+    if (!res.ok) setMsg(data.error || "Lỗi");
+    else {
+      setMsg(
+        `MQTT ${code}: user=${data.mqttUsername} pass=${data.mqttPassword} — chạy gen-mqtt-passwd rồi restart broker`,
+      );
+    }
+  }
+
   return (
     <div>
-      <PageHeader title="Thiết bị IoT" />
-      {msg && <p className="mb-3 text-sm text-teal-700">{msg}</p>}
+      <PageHeader title="Thiết bị IoT" subtitle="Lệnh điều khiển · rotate MQTT credential theo deviceCode" />
+      {msg && <p className="mb-3 break-all text-sm text-teal-700">{msg}</p>}
       <Card className="mb-4">
         <label className="mb-1.5 flex items-center gap-1.5">
           <ActionIcon action="search" size="sm" />
@@ -79,12 +95,15 @@ export default function AdminDevicesPage() {
                   />
                 </td>
                 <td>{d.volume}</td>
-                <td className="space-x-2">
+                <td className="space-x-1">
                   <Btn variant="secondary" onClick={() => sendCommand(d.id, "set_volume", { volume: 50 })}>
                     Vol 50
                   </Btn>
                   <Btn variant="secondary" onClick={() => sendCommand(d.id, "reboot")}>
                     Reboot
+                  </Btn>
+                  <Btn variant="secondary" onClick={() => rotateMqtt(d.id, d.deviceCode)}>
+                    MQTT pass
                   </Btn>
                 </td>
               </tr>

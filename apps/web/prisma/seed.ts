@@ -236,6 +236,8 @@ async function main() {
   ];
 
   for (const d of deviceDefs) {
+    const mqttPass = `dev-${d.code}`;
+    const mqttPasswordHash = await bcrypt.hash(mqttPass, 10);
     await prisma.device.create({
       data: {
         deviceCode: d.code,
@@ -248,6 +250,8 @@ async function main() {
         lastSeenAt: d.online ? new Date() : null,
         type: d.type,
         rssi: d.online ? -70 : null,
+        mqttPasswordHash,
+        mqttPasswordSetAt: new Date(),
       },
     });
   }

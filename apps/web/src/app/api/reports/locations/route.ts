@@ -5,10 +5,18 @@ import { jsonError } from "@/lib/api";
 import { LocationType, UserRole } from "@prisma/client";
 import { LOCATION_TYPE_LABELS, OPERATION_STATUS_LABELS } from "@/lib/labels";
 
+/** Excel locale VN dùng `;` làm delimiter (dấu `,` là thập phân). */
+const SEP = ";";
+
 function csvEscape(v: unknown) {
   const s = v == null ? "" : String(v);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  if (/[";\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
+}
+
+function formatViDate(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export async function GET(req: NextRequest) {
@@ -55,7 +63,7 @@ export async function GET(req: NextRequest) {
     "Lng",
   ];
 
-  const lines = [header.join(",")];
+  const lines = [header.join(SEP)];
   locations.forEach((l, i) => {
     lines.push(
       [
@@ -67,19 +75,22 @@ export async function GET(req: NextRequest) {
         l.locationSubtype || "",
         OPERATION_STATUS_LABELS[l.operationStatus] || l.operationStatus,
         l.licenseNumber || "",
-        new Date(l.createdAt).toISOString(),
+        formatViDate(new Date(l.createdAt)),
         l.createdBy?.fullName || l.createdBy?.username || "",
         l.media.length,
-        l.lat,
-        l.lng,
+        // Dấu thập phân `.` — Excel VN vẫn nhận số khi cột tách bằng `;`
+        String(l.lat),
+        String(l.lng),
       ]
         .map(csvEscape)
-        .join(","),
+        .join(SEP),
     );
   });
 
   const filename = `bao-cao-dia-diem${locationType ? `-${locationType}` : ""}-${Date.now()}.csv`;
-  return new Response("\uFEFF" + lines.join("\n"), {
+  // BOM + sep= giúp Excel nhận đúng delimiter
+  const body = `\uFEFFsep=${SEP}\n` + lines.join("\r\n");
+  return new Response(body, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
