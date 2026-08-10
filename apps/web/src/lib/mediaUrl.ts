@@ -23,3 +23,13 @@ export function mediaUrl(storageKey: string | null | undefined): string {
   }
   return `/${key}`;
 }
+
+/** Preview audio/media qua API (cookie auth + Content-Type đúng) — dùng cho TTS nghe thử */
+export function mediaPreviewUrl(storageKey: string | null | undefined): string {
+  if (!storageKey) return "";
+  if (storageKey.startsWith("http://") || storageKey.startsWith("https://")) {
+    return storageKey;
+  }
+  return `/api/media/raw?key=${encodeURIComponent(normalizeStorageKey(storageKey))}`;
+}
+
