@@ -38,8 +38,10 @@ export async function GET(req: NextRequest) {
   return new Response(new Uint8Array(obj.body), {
     status: 200,
     headers: {
-      "Content-Type": obj.contentType,
+      "Content-Type": obj.contentType || "application/octet-stream",
+      "Accept-Ranges": "bytes",
       "Cache-Control": "private, max-age=3600",
+      "Content-Disposition": `inline; filename="${normalized.split("/").pop() || "media"}"`,
     },
   });
 }

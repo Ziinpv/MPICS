@@ -73,16 +73,46 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
 
   if (action === "retry_tts") {
-    if (!["approved", "tts_processing", "ready_to_air"].includes(content.status)) {
-      return jsonError("Chỉ retry TTS khi đã duyệt / processing");
+    if (!["approved", "tts_processing", "ready_to_air", "draft", "pending"].includes(content.status)) {
+      return jsonError("Không retry TTS ở trạng thái này");
     }
+    // draft/pending: coi như duyệt lại
     try {
-      const { job } = await enqueueAndRunTts(params.id, { voice: body.voice, sync: true });
+      await prisma.content.update({
+        where: { id: params.id },
+        data: { status: "tts_processing" },
+      });
+      const { job } = await enqueueAndRunTts(params.id, {
+        voice: body.voice,
+        sync: body.async !== true,
+      });
       const updated = await prisma.content.findUnique({
         where: { id: params.id },
-        include: { mediaAsset: true },
+        include: {
+          mediaAsset: true,
+          ttsJobs: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
       });
-      return jsonOk({ content: updated, ttsJob: job });
+
+      await writeAuditLog({
+        actor: user,
+        action: "content.retry_tts",
+        entityType: "Content",
+        entityId: params.id,
+        meta: { jobId: job.id, status: job.status, driver: job.driver, voice: job.voice },
+        ip: clientIp(req),
+      });
+
+      return jsonOk({
+        content: updated,
+        ttsJob: job,
+        message:
+          job.status === "done"
+            ? "Retry TTS OK → ready_to_air (có thể nghe thử)"
+            : job.status === "failed"
+              ? `Retry TTS lỗi: ${job.error}`
+              : "Đã enqueue retry TTS",
+      });
     } catch (e: any) {
       return jsonError(e?.message || "Retry TTS thất bại", 500);
     }

@@ -12,7 +12,23 @@ export async function GET() {
 
   const contents = await prisma.content.findMany({
     where: { org: { path: { startsWith: user.orgPath } } },
-    include: { author: { select: { fullName: true } }, mediaAsset: true },
+    include: {
+      author: { select: { fullName: true } },
+      mediaAsset: true,
+      ttsJobs: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          status: true,
+          driver: true,
+          voice: true,
+          error: true,
+          finishedAt: true,
+          createdAt: true,
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
   return jsonOk({ contents });
