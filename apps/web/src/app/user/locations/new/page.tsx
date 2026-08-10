@@ -91,8 +91,15 @@ export default function NewLocationPage() {
           communeList.find((o: any) => o.name === user?.orgName) ||
           communeList[0];
         setCommuneId(preferred?.id || "");
+
+        const box = metaData.geoValidation?.myBbox;
+        if (box?.centerLat != null && box?.centerLng != null) {
+          setPick({ lat: box.centerLat, lng: box.centerLng });
+          setMapZoom(13);
+          setRecenterToken((t) => t + 1);
+        }
       } catch {
-        if (!cancelled) setMsg("Không tải được danh sách xã/phường Lâm Đồng");
+        if (!cancelled) setMsg("Không tải được danh sách xã/phường");
       } finally {
         if (!cancelled) setMetaLoading(false);
       }
@@ -211,29 +218,19 @@ export default function NewLocationPage() {
             </select>
           </div>
           <div>
-            <label>Xã / phường (Lâm Đồng)</label>
-            <select
-              value={communeId}
-              onChange={(e) => setCommuneId(e.target.value)}
-              disabled={metaLoading || !communes.length}
-              required
-            >
-              {!communes.length && <option value="">Đang tải danh sách…</option>}
-              {communes.map((c) => {
-                const allowed = !me || c.id === me.orgId;
-                return (
-                  <option key={c.id} value={c.id} disabled={!allowed}>
-                    {c.name}
-                    {!allowed ? " (ngoài phạm vi tài khoản)" : ""}
-                  </option>
-                );
-              })}
+            <label>Xã / phường</label>
+            <select value={communeId} disabled required>
+              {!communes.length && <option value="">Đang tải…</option>}
+              {communes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </select>
-            <p className="mt-1 text-xs text-slate-400">
-              {metaLoading
-                ? "Đang tải danh sách xã/phường…"
-                : `Đã seed ${communes.length} xã/phường/đặc khu của Lâm Đồng.`}
-              {me?.orgName ? ` Tài khoản hiện chỉ được lưu vào: ${me.orgName}.` : ""}
+            <p className="mt-1 text-xs text-slate-500">
+              Tài khoản User chỉ tạo địa điểm trong{" "}
+              <strong>{me?.orgName || selectedCommune?.name || "xã được gán"}</strong> — không đổi được
+              đơn vị khác.
             </p>
           </div>
           <div>

@@ -2,18 +2,14 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { jsonError } from "@/lib/api";
-import { LocationType, UserRole } from "@prisma/client";
+import { LocationType, OperationStatus, UserRole } from "@prisma/client";
 import { LOCATION_TYPE_LABELS, OPERATION_STATUS_LABELS } from "@/lib/labels";
+import { canExportLocations, locationWhereForUser } from "@/lib/permissions";
 
-/**
- * Tab-separated + UTF-16 LE BOM — Excel/WPS mở double-click tự tách cột + đúng tiếng Việt.
- * (CSV `;` hay bị dồn 1 cột nếu app bỏ qua sep=; / locale không khớp.)
- */
 const SEP = "\t";
 
 function csvEscape(v: unknown) {
   const s = v == null ? "" : String(v);
-  // Escape tab/newline/quote trong field
   if (/["\t\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
@@ -23,7 +19,6 @@ function formatViDate(d: Date) {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** Giữ dấu `.` thập phân; tab delimiter nên Excel không nhầm thousand-separator */
 function formatCoord(n: number, digits = 6) {
   if (!Number.isFinite(n)) return "";
   return n.toFixed(digits);
@@ -32,16 +27,27 @@ function formatCoord(n: number, digits = 6) {
 export async function GET(req: NextRequest) {
   const user = await getSession();
   if (!user) return jsonError("Unauthorized", 401);
-  if (user.role !== UserRole.ADMIN) return jsonError("Forbidden", 403);
+  if (!canExportLocations(user)) return jsonError("Forbidden", 403);
 
   const { searchParams } = new URL(req.url);
   const locationType = searchParams.get("location_type") as LocationType | null;
+  const operationStatus = searchParams.get("operation_status") as OperationStatus | null;
+  const orgId = searchParams.get("org_id");
   const format = searchParams.get("format") || "csv";
 
-  const where: Record<string, unknown> = {
-    org: { path: { startsWith: user.orgPath } },
-  };
+  const where: Record<string, unknown> = { ...locationWhereForUser(user) };
   if (locationType) where.locationType = locationType;
+  if (operationStatus) where.operationStatus = operationStatus;
+
+  // Admin có thể thu hẹp thêm 1 xã — phải thuộc subtree
+  if (orgId && user.role === UserRole.ADMIN) {
+    const org = await prisma.organization.findUnique({ where: { id: orgId } });
+    if (!org || !org.path.startsWith(user.orgPath)) {
+      return jsonError("org_id ngoài phạm vi", 403);
+    }
+    where.orgId = orgId;
+    delete where.org;
+  }
 
   const locations = await prisma.location.findMany({
     where,

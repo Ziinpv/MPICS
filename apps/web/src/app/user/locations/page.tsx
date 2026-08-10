@@ -11,34 +11,98 @@ import { ActionIcon } from "@/components/ActionIcon";
 export default function UserLocationsPage() {
   const [locations, setLocations] = useState<any[]>([]);
   const [type, setType] = useState("");
+  const [status, setStatus] = useState("");
+  const [q, setQ] = useState("");
+  const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    const q = new URLSearchParams();
-    if (type) q.set("location_type", type);
-    fetch(`/api/locations?${q}`)
+    const params = new URLSearchParams();
+    if (type) params.set("location_type", type);
+    if (status) params.set("operation_status", status);
+    if (q.trim()) params.set("q", q.trim());
+    fetch(`/api/locations?${params}`)
       .then((r) => r.json())
       .then((d) => setLocations(d.locations || []));
-  }, [type]);
+  }, [type, status, q]);
+
+  async function exportCsv() {
+    setMsg("");
+    const params = new URLSearchParams({ format: "csv" });
+    if (type) params.set("location_type", type);
+    if (status) params.set("operation_status", status);
+    try {
+      const res = await fetch(`/api/reports/locations?${params}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setMsg(data.error || "Xuất lỗi");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dia-diem-xa-${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMsg("Đã tải CSV (phạm vi xã của bạn)");
+    } catch {
+      setMsg("Không tải được file");
+    }
+  }
 
   return (
     <div>
       <PageHeader
         title="Danh sách địa điểm / tài sản"
+        subtitle="Chỉ dữ liệu trong xã của bạn"
         actions={
-          <Link href="/user/locations/new">
-            <Btn>
-              <ActionIcon action="add" size="sm" />
-              Thêm mới
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="secondary" onClick={exportCsv}>
+              <ActionIcon action="download" size="sm" />
+              Xuất CSV
             </Btn>
-          </Link>
+            <Link href="/user/locations/new">
+              <Btn>
+                <ActionIcon action="add" size="sm" />
+                Thêm mới
+              </Btn>
+            </Link>
+          </div>
         }
       />
-      <Card className="mb-4">
-        <label className="mb-1.5 flex items-center gap-1.5">
-          <ActionIcon action="search" size="sm" />
-          Lọc theo phân loại
-        </label>
-        <LocationTypeSelect value={type} onChange={setType} allowAll variant="chips" />
+      {msg && <p className="mb-3 text-sm text-teal-700">{msg}</p>}
+      <Card className="mb-4 space-y-3">
+        <div>
+          <label className="mb-1.5 flex items-center gap-1.5">
+            <ActionIcon action="search" size="sm" />
+            Phân loại
+          </label>
+          <LocationTypeSelect value={type} onChange={setType} allowAll variant="chips" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 flex items-center gap-1.5">
+              <StatusIcon operationStatus={status || "active"} size="sm" />
+              Tình trạng
+            </label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">Tất cả</option>
+              {Object.entries(OPERATION_STATUS_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>Tìm tên / địa chỉ</label>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Nhập từ khóa…"
+            />
+          </div>
+        </div>
       </Card>
       <Card>
         <table>
@@ -91,6 +155,13 @@ export default function UserLocationsPage() {
                 </td>
               </tr>
             ))}
+            {!locations.length && (
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-400">
+                  Không có địa điểm
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </Card>

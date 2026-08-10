@@ -91,6 +91,42 @@ function typeIcon(type?: string, online?: boolean) {
   });
 }
 
+function FitBounds({
+  markers,
+  enabled,
+}: {
+  markers: MapMarker[];
+  enabled?: boolean;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!enabled || markers.length === 0) return;
+    if (markers.length === 1) {
+      map.setView([markers[0].lat, markers[0].lng], 15, { animate: true });
+      return;
+    }
+    const bounds = L.latLngBounds(markers.map((m) => [m.lat, m.lng] as [number, number]));
+    map.fitBounds(bounds.pad(0.18), { animate: true, maxZoom: 16 });
+  }, [markers, enabled, map]);
+  return null;
+}
+
+function MarkerPopup({ m }: { m: MapMarker }) {
+  return (
+    <Popup>
+      <strong>{m.label}</strong>
+      {m.popup && <div className="mt-1 text-sm">{m.popup}</div>}
+      {m.href && (
+        <div className="mt-2">
+          <a href={m.href} className="text-sm font-medium text-teal-700 underline">
+            Xem / Sửa →
+          </a>
+        </div>
+      )}
+    </Popup>
+  );
+}
+
 type Props = {
   markers?: MapMarker[];
   center?: LatLngExpression;
@@ -101,6 +137,8 @@ type Props = {
   onPick?: (pos: { lat: number; lng: number }) => void;
   /** Tăng khi cần ép map nhảy tới center (GPS / sửa lat lng) */
   recenterToken?: number;
+  /** Tự fitBounds theo markers (tra cứu) */
+  fitBoundsToMarkers?: boolean;
   onError?: (msg: string) => void;
 };
 
@@ -113,6 +151,7 @@ export default function MapInner({
   pickPosition,
   onPick,
   recenterToken = 0,
+  fitBoundsToMarkers,
   onError,
 }: Props) {
   useEffect(() => {
@@ -139,7 +178,8 @@ export default function MapInner({
       style={{ height: "100%", minHeight: height, width: "100%" }}
       scrollWheelZoom
     >
-      <Recenter center={center} zoom={zoom} token={recenterToken} />
+      {!fitBoundsToMarkers && <Recenter center={center} zoom={zoom} token={recenterToken} />}
+      {fitBoundsToMarkers && <FitBounds markers={markers} enabled />}
       <MapCursor pickMode={pickMode} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
@@ -152,10 +192,7 @@ export default function MapInner({
           const icon = icons.get(key) || typeIcon(m.type, m.online);
           return (
             <Marker key={m.id} position={[m.lat, m.lng]} icon={icon}>
-              <Popup>
-                <strong>{m.label}</strong>
-                {m.popup && <div className="mt-1 text-sm">{m.popup}</div>}
-              </Popup>
+              <MarkerPopup m={m} />
             </Marker>
           );
         }
@@ -167,19 +204,13 @@ export default function MapInner({
               radius={9}
               pathOptions={{ color: m.color, fillColor: m.color, fillOpacity: 0.85, weight: 2 }}
             >
-              <Popup>
-                <strong>{m.label}</strong>
-                {m.popup && <div className="mt-1 text-sm">{m.popup}</div>}
-              </Popup>
+              <MarkerPopup m={m} />
             </CircleMarker>
           );
         }
         return (
           <Marker key={m.id} position={[m.lat, m.lng]} icon={defaultIcon}>
-            <Popup>
-              <strong>{m.label}</strong>
-              {m.popup && <div className="mt-1 text-sm">{m.popup}</div>}
-            </Popup>
+            <MarkerPopup m={m} />
           </Marker>
         );
       })}

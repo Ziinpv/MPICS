@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { canCreateLocation } from "@/lib/permissions";
+import { canCreateLocation, canAssignOrgId, locationWhereForUser } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
-import { LocationType, OperationStatus, UserRole } from "@prisma/client";
+import { LocationType, OperationStatus } from "@prisma/client";
 import { LOCATION_TYPE_LABELS, requiresLicenseDocs } from "@/lib/labels";
 import { normalizeStorageKey } from "@/lib/mediaUrl";
 import { checkLatLngForOrg, isGeoValidationEnabled } from "@/lib/communeBbox";
@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const locationType = searchParams.get("location_type") as LocationType | null;
   const operationStatus = searchParams.get("operation_status") as OperationStatus | null;
+  const q = searchParams.get("q")?.trim() || "";
 
   if (locationType && !VALID_LOCATION_TYPES.has(locationType)) {
     return jsonError(
@@ -24,14 +25,15 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const where: Record<string, unknown> = {};
-  if (user.role === UserRole.USER) {
-    where.orgId = user.orgId;
-  } else {
-    where.org = { path: { startsWith: user.orgPath } };
-  }
+  const where: Record<string, unknown> = { ...locationWhereForUser(user) };
   if (locationType) where.locationType = locationType;
   if (operationStatus) where.operationStatus = operationStatus;
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { address: { contains: q, mode: "insensitive" } },
+    ];
+  }
 
   const locations = await prisma.location.findMany({
     where,
@@ -79,11 +81,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const orgId = user.role === UserRole.USER ? user.orgId : body.orgId || user.orgId;
+  const orgId = user.role === "USER" ? user.orgId : body.orgId || user.orgId;
   const org = await prisma.organization.findUnique({ where: { id: orgId } });
   if (!org) return jsonError("Org không tồn tại", 404);
-  if (user.role === UserRole.USER && orgId !== user.orgId) {
-    return jsonError("Chỉ tạo địa điểm trong xã của bạn", 403);
+  if (!canAssignOrgId(user, org)) {
+    return jsonError("Không được tạo địa điểm ngoài phạm vi đơn vị", 403);
   }
 
   const lat = Number(body.lat);

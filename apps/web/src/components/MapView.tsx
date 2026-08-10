@@ -20,6 +20,8 @@ export type MapMarker = {
   label: string;
   color?: string;
   popup?: string;
+  /** Link trong popup (User GIS: sửa địa điểm) */
+  href?: string;
   /** DeviceType / LocationType — dùng custom Leaflet icon */
   type?: string;
   online?: boolean;
@@ -35,6 +37,7 @@ type Props = {
   onPick?: (pos: { lat: number; lng: number }) => void;
   /** Tăng khi GPS / sửa ô lat-lng để map nhảy theo */
   recenterToken?: number;
+  fitBoundsToMarkers?: boolean;
 };
 
 export default function MapView(props: Props) {

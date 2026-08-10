@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { locationWhereForUser } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
-import { LocationType, OperationStatus, UserRole } from "@prisma/client";
+import { LocationType, OperationStatus } from "@prisma/client";
 import { LOCATION_TYPE_LABELS } from "@/lib/labels";
 
 const VALID_LOCATION_TYPES = new Set(Object.keys(LOCATION_TYPE_LABELS));
@@ -21,9 +22,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const where: Record<string, unknown> = {};
-  if (user.role === UserRole.USER) where.orgId = user.orgId;
-  else where.org = { path: { startsWith: user.orgPath } };
+  const where: Record<string, unknown> = { ...locationWhereForUser(user) };
   if (locationType) where.locationType = locationType;
   if (operationStatus) where.operationStatus = operationStatus;
 

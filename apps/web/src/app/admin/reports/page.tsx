@@ -1,19 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader, Card, Btn } from "@/components/ui";
 import { LocationTypeSelect } from "@/components/DeviceTypeSelect";
 import { ActionIcon } from "@/components/ActionIcon";
+import { OPERATION_STATUS_LABELS } from "@/lib/labels";
 
 export default function AdminReportsPage() {
   const [locationType, setLocationType] = useState("");
+  const [status, setStatus] = useState("");
+  const [orgId, setOrgId] = useState("");
+  const [communes, setCommunes] = useState<any[]>([]);
   const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    fetch("/api/meta")
+      .then((r) => r.json())
+      .then((d) => setCommunes((d.orgs || []).filter((o: any) => o.type === "commune")));
+  }, []);
 
   function exportCsv() {
     setMsg("");
     const q = new URLSearchParams({ format: "csv" });
     if (locationType) q.set("location_type", locationType);
-    // Blob download giữ nguyên encoding (tránh một số trình duyệt làm hỏng BOM)
+    if (status) q.set("operation_status", status);
+    if (orgId) q.set("org_id", orgId);
     void (async () => {
       try {
         const res = await fetch(`/api/reports/locations?${q}`);
@@ -34,7 +45,7 @@ export default function AdminReportsPage() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        setMsg("Đã tải CSV (UTF-16 — mở bằng Excel)");
+        setMsg("Đã tải CSV (phạm vi orgPath Admin · UTF-16 Tab)");
       } catch {
         setMsg("Không tải được file");
       }
@@ -45,14 +56,36 @@ export default function AdminReportsPage() {
     <div>
       <PageHeader
         title="Xuất báo cáo địa điểm"
-        subtitle="Export CSV danh sách địa điểm GIS theo phạm vi Admin"
+        subtitle="CSV theo subtree Admin (có thể thu hẹp 1 xã)"
       />
       {msg && <p className="mb-3 text-sm text-brand-700">{msg}</p>}
 
       <Card className="max-w-xl space-y-4">
         <div>
+          <label>Xã / phường (tuỳ chọn)</label>
+          <select value={orgId} onChange={(e) => setOrgId(e.target.value)}>
+            <option value="">Toàn phạm vi Admin</option>
+            {communes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label>Lọc theo phân loại (tuỳ chọn)</label>
           <LocationTypeSelect value={locationType} onChange={setLocationType} allowAll />
+        </div>
+        <div>
+          <label>Tình trạng (tuỳ chọn)</label>
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">Tất cả</option>
+            {Object.entries(OPERATION_STATUS_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm text-slate-600">
           <p className="font-medium text-slate-800">Cột export</p>
@@ -61,8 +94,7 @@ export default function AdminReportsPage() {
             Người tạo, Số ảnh, Lat, Lng
           </p>
           <p className="mt-2 text-xs text-slate-400">
-            File CSV <strong>UTF-16</strong>, cột tách bằng <strong>Tab</strong> — Excel/WPS mở ra đúng
-            tiếng Việt và tách cột (không cần Data → Text to Columns).
+            File CSV <strong>UTF-16</strong> + <strong>Tab</strong> — Excel/WPS mở đúng tiếng Việt và cột.
           </p>
         </div>
         <Btn onClick={exportCsv}>

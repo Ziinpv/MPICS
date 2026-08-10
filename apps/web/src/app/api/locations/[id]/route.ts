@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { canUpdateLocation } from "@/lib/permissions";
+import { canUpdateLocation, canAccessLocation } from "@/lib/permissions";
 import { jsonError, jsonOk } from "@/lib/api";
-import { UserRole } from "@prisma/client";
 import { LOCATION_TYPE_LABELS } from "@/lib/labels";
 import { normalizeStorageKey } from "@/lib/storage";
 import { writeAuditLog } from "@/lib/audit";
@@ -23,9 +22,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     include: { media: true, org: true, createdBy: { select: { fullName: true } } },
   });
   if (!location) return jsonError("Not found", 404);
-  if (user.role === UserRole.USER && location.orgId !== user.orgId) {
-    return jsonError("Forbidden", 403);
-  }
+  if (!canAccessLocation(user, location)) return jsonError("Forbidden", 403);
   return jsonOk({
     location,
     locationTypeLabel: LOCATION_TYPE_LABELS[location.locationType],
@@ -42,9 +39,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     include: { media: true, org: true },
   });
   if (!existing) return jsonError("Not found", 404);
-  if (user.role === UserRole.USER && existing.orgId !== user.orgId) {
-    return jsonError("Forbidden", 403);
-  }
+  if (!canAccessLocation(user, existing)) return jsonError("Forbidden", 403);
 
   const body = await req.json().catch(() => ({}));
   if (body.locationType && !VALID_LOCATION_TYPES.has(body.locationType)) {

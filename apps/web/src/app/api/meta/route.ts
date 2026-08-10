@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
+import { UserRole } from "@prisma/client";
 import {
   DEVICE_TYPE_LABELS,
   DEVICE_TYPE_OPTIONS,
@@ -8,26 +9,41 @@ import {
   LOCATION_TYPE_LABELS,
   LOCATION_TYPE_OPTIONS,
 } from "@/lib/labels";
-import { COMMUNE_BBOX_BY_KEY, LAM_DONG_BBOX, isGeoValidationEnabled } from "@/lib/communeBbox";
+import { COMMUNE_BBOX_BY_KEY, LAM_DONG_BBOX, isGeoValidationEnabled, resolveOrgBbox, resolveCommuneBboxKey } from "@/lib/communeBbox";
+import { orgWhereForUser } from "@/lib/permissions";
 
 export async function GET() {
   const user = await getSession();
   if (!user) return jsonError("Unauthorized", 401);
 
-  const province = await prisma.organization.findFirst({
-    where: { type: "province", code: "68" },
-  });
+  let orgs: Awaited<ReturnType<typeof prisma.organization.findMany>>;
 
-  const orgs = await prisma.organization.findMany({
-    where: province
-      ? {
-          OR: [{ id: province.id }, { parentId: province.id }],
-        }
-      : { path: { startsWith: "/lam_dong" } },
-    orderBy: [{ type: "asc" }, { name: "asc" }],
-  });
+  if (user.role === UserRole.USER) {
+    const mine = await prisma.organization.findUnique({
+      where: { id: user.orgId },
+      include: { parent: true },
+    });
+    orgs = [];
+    if (mine?.parent) orgs.push(mine.parent);
+    if (mine) orgs.push(mine);
+  } else {
+    orgs = await prisma.organization.findMany({
+      where: orgWhereForUser(user),
+      orderBy: [{ type: "asc" }, { name: "asc" }],
+    });
+  }
+
+  const province =
+    orgs.find((o) => o.type === "province") ||
+    (await prisma.organization.findFirst({
+      where: { type: "province", path: { startsWith: user.orgPath.split("/").slice(0, 2).join("/") || user.orgPath } },
+    }));
 
   const clusters = await prisma.deviceCluster.findMany({
+    where:
+      user.role === UserRole.USER
+        ? { orgId: user.orgId }
+        : { org: { path: { startsWith: user.orgPath } } },
     include: { org: true },
     orderBy: { name: "asc" },
   });
@@ -49,10 +65,15 @@ export async function GET() {
     Object.assign(locationSubtypesByType, fromDb);
   }
 
+  const myOrg = orgs.find((o) => o.id === user.orgId) || orgs.find((o) => o.type === "commune");
+  const myBbox = myOrg ? resolveOrgBbox(myOrg) : null;
+  const myBboxKey = myOrg ? resolveCommuneBboxKey(myOrg) || "mine" : "mine";
+
   return jsonOk({
     orgs,
     clusters,
-    province,
+    province: province || null,
+    myOrg: myOrg || null,
     communeCount: orgs.filter((o) => o.type === "commune").length,
     locationTypes: LOCATION_TYPE_OPTIONS,
     locationTypeLabels: LOCATION_TYPE_LABELS,
@@ -62,7 +83,18 @@ export async function GET() {
     geoValidation: {
       enabled: isGeoValidationEnabled(),
       lamDongBbox: LAM_DONG_BBOX,
-      communeBboxes: COMMUNE_BBOX_BY_KEY,
+      communeBboxes:
+        user.role === UserRole.USER && myBbox
+          ? { [myBboxKey]: myBbox.bbox }
+          : COMMUNE_BBOX_BY_KEY,
+      myBbox: myBbox
+        ? {
+            ...myBbox.bbox,
+            label: myBbox.label,
+            centerLat: (myBbox.bbox.minLat + myBbox.bbox.maxLat) / 2,
+            centerLng: (myBbox.bbox.minLng + myBbox.bbox.maxLng) / 2,
+          }
+        : null,
     },
   });
 }
