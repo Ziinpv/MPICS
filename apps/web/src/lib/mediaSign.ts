@@ -15,6 +15,23 @@ export function signMediaChecksum(checksum: string, storageKey: string) {
     .digest("hex");
 }
 
+/** Kiểm tra chữ ký media (device/sim từ chối file sai chữ ký). */
+export function verifyMediaSignature(
+  checksum: string,
+  storageKey: string,
+  signature: string | null | undefined,
+): boolean {
+  if (!signature || !checksum || !storageKey) return false;
+  const expected = signMediaChecksum(checksum, storageKey);
+  if (expected.length !== signature.length) return false;
+  // timing-safe compare
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 export function randomMqttPassword(bytes = 18) {
   return randomBytes(bytes).toString("base64url");
 }

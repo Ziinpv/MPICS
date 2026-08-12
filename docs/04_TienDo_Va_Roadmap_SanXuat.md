@@ -1,7 +1,7 @@
 # Tiến độ & lộ trình sản xuất — MPCIS
 
 > Cập nhật: **12 Aug 2026**  
-> Trạng thái: NV02/08/10 vận hành local + play logs / broadcast report / notify resolve.  
+> Trạng thái: NV02/08/10 + welcome email + NV06 TTS params / signature verify / content funnel.  
 > Repo: https://github.com/Ziinpv/MPICS
 
 ---

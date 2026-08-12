@@ -50,6 +50,7 @@ export default function AdminReportsPage() {
   const [uptimeSummary, setUptimeSummary] = useState<any>(null);
   const [incidentSummary, setIncidentSummary] = useState<any>(null);
   const [broadcastSummary, setBroadcastSummary] = useState<any>(null);
+  const [funnelSummary, setFunnelSummary] = useState<any>(null);
 
   useEffect(() => {
     fetch("/api/meta")
@@ -184,6 +185,36 @@ export default function AdminReportsPage() {
     try {
       await downloadCsv(`/api/reports/broadcasts?${q}`, `bao-cao-phat-song-${Date.now()}.csv`);
       setMsg("Đã tải CSV phát sóng");
+    } catch (e: any) {
+      setMsg(e?.message || "Xuất lỗi");
+    }
+  }
+
+  async function loadFunnel() {
+    setMsg("");
+    const q = new URLSearchParams({
+      from: new Date(from).toISOString(),
+      to: new Date(to + "T23:59:59").toISOString(),
+    });
+    const res = await fetch(`/api/reports/content-funnel?${q}`);
+    const data = await res.json();
+    if (!res.ok) setMsg(data.error || "Funnel lỗi");
+    else {
+      setFunnelSummary(data.summary);
+      setMsg(`Content funnel: ${data.summary?.total ?? 0} bài trong khoảng`);
+    }
+  }
+
+  async function exportFunnel() {
+    setMsg("");
+    const q = new URLSearchParams({
+      format: "csv",
+      from: new Date(from).toISOString(),
+      to: new Date(to + "T23:59:59").toISOString(),
+    });
+    try {
+      await downloadCsv(`/api/reports/content-funnel?${q}`, `bao-cao-content-funnel-${Date.now()}.csv`);
+      setMsg("Đã tải CSV content funnel");
     } catch (e: any) {
       setMsg(e?.message || "Xuất lỗi");
     }
@@ -344,8 +375,29 @@ export default function AdminReportsPage() {
           </div>
         </Card>
 
+        <Card className="space-y-4">
+          <h2 className="font-semibold text-slate-900">6. Content funnel</h2>
+          <p className="text-sm text-slate-500">draft → duyệt → TTS → ready / rejected</p>
+          {funnelSummary && (
+            <p className="text-xs text-slate-600">
+              Tổng {funnelSummary.total} · ready {funnelSummary.byStatus?.ready_to_air ?? 0} ·
+              rejected {funnelSummary.byStatus?.rejected ?? 0} · pending{" "}
+              {funnelSummary.byStatus?.pending ?? 0}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="secondary" onClick={loadFunnel}>
+              Xem tóm tắt
+            </Btn>
+            <Btn onClick={exportFunnel}>
+              <ActionIcon action="download" size="sm" />
+              Xuất CSV funnel
+            </Btn>
+          </div>
+        </Card>
+
         <Card className="space-y-4 lg:col-span-2">
-          <h2 className="font-semibold text-slate-900">6. Nhật ký hệ thống (Audit)</h2>
+          <h2 className="font-semibold text-slate-900">7. Nhật ký hệ thống (Audit)</h2>
           <p className="text-sm text-slate-500">
             Lọc chi tiết tại{" "}
             <Link href="/admin/audit" className="text-teal-700 underline">

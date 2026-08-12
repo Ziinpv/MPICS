@@ -57,7 +57,8 @@ sequenceDiagram
 - Output bắt buộc qua `media-service` ký số trước khi `ready_to_air`.
 
 ## 9. Tiêu chí chấp nhận
-- [ ] TTS xong tạo `media_assets` có checksum + signature.
-- [ ] Content chuyển `ready_to_air`.
-- [ ] Admin preview được file trước khi schedule.
-- [ ] Job fail không làm mất nội dung gốc.
+- [x] TTS xong tạo `media_assets` có checksum + signature.
+- [x] Content chuyển `ready_to_air`.
+- [x] Admin preview được file trước khi schedule.
+- [x] Job fail không làm mất nội dung gốc (trả `approved`).
+- [x] API `POST /api/tts/jobs` + tham số gender/region/speed (edge-tts).

@@ -374,6 +374,12 @@ model TtsJob {
   content      Content      @relation(fields: [contentId], references: [id], onDelete: Cascade)
   status       TtsJobStatus @default(queued)
   voice        String       @default("vi-VN-HoaiMyNeural")
+  /// male | female
+  voiceGender  String?
+  /// north | central | south
+  region       String?
+  /// 0.8 – 1.5 (edge-tts rate)
+  speed        Float        @default(1.0)
   driver       String       @default("edge")
   error        String?
   mediaAssetId String?

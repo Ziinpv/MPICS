@@ -15,6 +15,9 @@ export default function AdminContentsPage() {
   const [title, setTitle] = useState("");
   const [bodyPlain, setBodyPlain] = useState("");
   const [voice, setVoice] = useState(VOICES[0].value);
+  const [voiceGender, setVoiceGender] = useState<"female" | "male">("female");
+  const [region, setRegion] = useState<"north" | "central" | "south">("north");
+  const [speed, setSpeed] = useState(1);
   const [msg, setMsg] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -61,7 +64,14 @@ export default function AdminContentsPage() {
       const res = await fetch(`/api/contents/${id}/moderate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, voice, ...extra }),
+        body: JSON.stringify({
+          action,
+          voice,
+          voiceGender,
+          region,
+          speed,
+          ...extra,
+        }),
       });
       const data = await res.json();
       if (!res.ok) setMsg(data.error);
@@ -129,15 +139,59 @@ export default function AdminContentsPage() {
               required
             />
           </div>
-          <div className="max-w-xs">
-            <label>Giọng TTS mặc định</label>
-            <select value={voice} onChange={(e) => setVoice(e.target.value)}>
-              {VOICES.map((v) => (
-                <option key={v.value} value={v.value}>
-                  {v.label}
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label>Giọng TTS (edge)</label>
+              <select
+                value={voice}
+                onChange={(e) => {
+                  setVoice(e.target.value);
+                  setVoiceGender(e.target.value.includes("NamMinh") ? "male" : "female");
+                }}
+              >
+                {VOICES.map((v) => (
+                  <option key={v.value} value={v.value}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label>Giới tính (map giọng)</label>
+              <select
+                value={voiceGender}
+                onChange={(e) => {
+                  const g = e.target.value as "female" | "male";
+                  setVoiceGender(g);
+                  setVoice(g === "male" ? "vi-VN-NamMinhNeural" : "vi-VN-HoaiMyNeural");
+                }}
+              >
+                <option value="female">Nữ</option>
+                <option value="male">Nam</option>
+              </select>
+            </div>
+            <div>
+              <label>Vùng miền</label>
+              <select
+                value={region}
+                onChange={(e) => setRegion(e.target.value as "north" | "central" | "south")}
+              >
+                <option value="north">Bắc</option>
+                <option value="central">Trung</option>
+                <option value="south">Nam</option>
+              </select>
+            </div>
+            <div>
+              <label>Tốc độ ({speed.toFixed(1)}×)</label>
+              <input
+                type="range"
+                min={0.8}
+                max={1.5}
+                step={0.1}
+                value={speed}
+                onChange={(e) => setSpeed(Number(e.target.value))}
+              />
+            </div>
           </div>
           <Btn type="submit">Lưu nháp</Btn>
         </form>

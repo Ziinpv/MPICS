@@ -123,6 +123,8 @@ export async function publishScheduleCommands(input: {
           payload: {
             scheduleId: schedule.id,
             mediaUrl: item?.mediaAsset?.cdnUrl,
+            storageKey: item?.mediaAsset?.storageKey,
+            checksum: item?.mediaAsset?.checksum,
             signature: item?.mediaAsset?.signature,
             title: item?.content?.title,
             preempt: isEmergency,

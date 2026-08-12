@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { recordPlayLogFromCommand } from "@/lib/playLog";
+import { verifyMediaSignature } from "@/lib/mediaSign";
 
 /** Simulator poll pending commands */
 export async function GET(req: NextRequest) {
@@ -30,12 +31,31 @@ export async function POST(req: NextRequest) {
   const existing = await prisma.deviceCommand.findUnique({ where: { id: body.commandId } });
   if (!existing) return jsonError("Command not found", 404);
 
+  // Device từ chối play nếu chữ ký media không khớp
+  if (existing.commandType === "play") {
+    const payload = (existing.payload || {}) as {
+      checksum?: string;
+      storageKey?: string;
+      signature?: string;
+    };
+    if (payload.checksum && payload.storageKey) {
+      const ok = verifyMediaSignature(payload.checksum, payload.storageKey, payload.signature);
+      if (!ok) {
+        await prisma.deviceCommand.update({
+          where: { id: existing.id },
+          data: { status: "failed" },
+        });
+        await recordPlayLogFromCommand(existing.id, { error: "invalid_media_signature" });
+        return jsonError("Device từ chối: chữ ký media không hợp lệ", 400);
+      }
+    }
+  }
+
   const command = await prisma.deviceCommand.update({
     where: { id: body.commandId },
     data: { status: "acked", ackedAt: new Date() },
   });
 
-  // Cho phép ack từ pending (HTTP poll) hoặc sent (MQTT)
   if (command.commandType === "set_volume" && command.payload && typeof command.payload === "object") {
     const volume = (command.payload as { volume?: number }).volume;
     if (volume != null) {

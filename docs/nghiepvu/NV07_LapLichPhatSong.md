@@ -64,5 +64,5 @@ Khi emergency chạy: gửi `stop` lịch thường trên cùng device → phát
 - [x] Lịch định kỳ + khung giờ trong ngày (`windowStartMin`/`windowEndMin`).
 - [x] Emergency preempt (stop play pending/sent + lệnh `stop`).
 - [x] Calendar tuần trên `/admin/schedules`.
-- [ ] Device từ chối file không đúng chữ ký.
+- [x] Device từ chối file không đúng chữ ký (sim/ack `play` verify HMAC).
 - [x] Play log ghi nhận ok/error theo thiết bị (`DevicePlayLog` khi ack play).

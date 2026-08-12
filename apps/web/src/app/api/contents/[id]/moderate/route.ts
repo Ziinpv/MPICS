@@ -165,6 +165,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       });
       const { job, sync } = await enqueueAndRunTts(params.id, {
         voice: body.voice,
+        voiceGender: body.voiceGender || body.voice_gender,
+        region: body.region,
+        speed: body.speed != null ? Number(body.speed) : undefined,
         sync: body.async !== true,
       });
       const updated = await prisma.content.findUnique({
@@ -186,7 +189,15 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         action: action === "run_tts" ? "content.run_tts" : "content.retry_tts",
         entityType: "Content",
         entityId: params.id,
-        meta: { jobId: job.id, status: job.status, sync, driver: job.driver, voice: job.voice },
+        meta: {
+          jobId: job.id,
+          status: job.status,
+          sync,
+          driver: job.driver,
+          voice: job.voice,
+          speed: job.speed,
+          region: job.region,
+        },
         ip: clientIp(req),
       });
 

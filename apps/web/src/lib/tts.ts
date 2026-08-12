@@ -19,6 +19,31 @@ export function ttsVoice() {
   return process.env.TTS_VOICE || "vi-VN-HoaiMyNeural";
 }
 
+export type TtsVoiceOpts = {
+  voice?: string;
+  voiceGender?: "male" | "female" | string | null;
+  region?: "north" | "central" | "south" | string | null;
+  speed?: number | null;
+};
+
+/** Map gender/region → edge neural voice (VN hiện có 2 giọng chính). */
+export function resolveTtsVoice(opts?: TtsVoiceOpts): string {
+  if (opts?.voice?.trim()) return opts.voice.trim();
+  const gender = (opts?.voiceGender || "").toLowerCase();
+  if (gender === "male" || gender === "nam") return "vi-VN-NamMinhNeural";
+  if (gender === "female" || gender === "nu" || gender === "nữ") return "vi-VN-HoaiMyNeural";
+  // region: edge-tts chưa có bộ đủ Bắc/Trung/Nam — giữ giọng mặc định / theo gender
+  return ttsVoice();
+}
+
+/** speed 0.8–1.5 → edge-tts rate string */
+export function speedToEdgeRate(speed?: number | null): string {
+  const s = speed == null || !Number.isFinite(speed) ? 1 : Math.min(1.5, Math.max(0.8, speed));
+  const pct = Math.round((s - 1) * 100);
+  if (pct === 0) return "+0%";
+  return pct > 0 ? `+${pct}%` : `${pct}%`;
+}
+
 function resolvePython(): string {
   if (process.env.TTS_PYTHON?.trim()) return process.env.TTS_PYTHON.trim();
   const local = process.env.LOCALAPPDATA || "";
@@ -68,7 +93,11 @@ function runCmd(cmd: string, args: string[], timeoutMs = 120_000): Promise<void>
 }
 
 /** Sinh MP3 bằng edge-tts (Python helper — ổn định hơn CLI trên Windows). */
-export async function synthesizeEdgeTts(text: string, voice: string): Promise<Buffer> {
+export async function synthesizeEdgeTts(
+  text: string,
+  voice: string,
+  rate = "+0%",
+): Promise<Buffer> {
   const dir = await mkdtemp(path.join(tmpdir(), "mpcis-tts-"));
   const textFile = path.join(dir, "in.txt");
   const outFile = path.join(dir, "out.mp3");
@@ -77,13 +106,15 @@ export async function synthesizeEdgeTts(text: string, voice: string): Promise<Bu
     await writeFile(textFile, text.replace(/^\uFEFF/, "").trim() + "\n", "utf8");
     const py = resolvePython();
     if (existsSync(helper)) {
-      await runCmd(py, [helper, textFile, voice, outFile]);
+      await runCmd(py, [helper, textFile, voice, outFile, rate]);
     } else {
       await runCmd(py, [
         "-m",
         "edge_tts",
         "--voice",
         voice,
+        "--rate",
+        rate,
         "--file",
         textFile,
         "--write-media",
@@ -102,28 +133,29 @@ export async function synthesizeTts(
   text: string,
   voice: string,
   driver: TtsDriver,
+  rate = "+0%",
 ): Promise<{ audio: Buffer; driver: TtsDriver }> {
   if (driver === "mock") {
     const payload = Buffer.concat([
       minimalMp3(),
-      Buffer.from(`\nMPCIS-MOCK-TTS:${createHash("md5").update(text).digest("hex")}\n`),
+      Buffer.from(`\nMPCIS-MOCK-TTS:${createHash("md5").update(text + rate).digest("hex")}\n`),
     ]);
     return { audio: payload, driver: "mock" };
   }
   try {
-    const audio = await synthesizeEdgeTts(text, voice);
+    const audio = await synthesizeEdgeTts(text, voice, rate);
     if (!audio.length) throw new Error("edge-tts empty audio");
     return { audio, driver: "edge" };
   } catch (e: any) {
     // Retry 1 lần (edge đôi khi NoAudioReceived)
     try {
-      const audio = await synthesizeEdgeTts(text, voice);
+      const audio = await synthesizeEdgeTts(text, voice, rate);
       if (!audio.length) throw new Error("edge-tts empty audio");
       return { audio, driver: "edge" };
     } catch (e2: any) {
       if (process.env.TTS_FALLBACK_MOCK === "1") {
         console.warn("[tts] edge failed, fallback mock:", e2?.message || e?.message);
-        return synthesizeTts(text, voice, "mock");
+        return synthesizeTts(text, voice, "mock", rate);
       }
       throw e2;
     }
@@ -151,7 +183,8 @@ export async function processTtsJob(jobId: string) {
   try {
     const preferred = (job.driver === "mock" ? "mock" : ttsDriver()) as TtsDriver;
     const voice = job.voice || ttsVoice();
-    const { audio, driver } = await synthesizeTts(job.content.bodyPlain, voice, preferred);
+    const rate = speedToEdgeRate(job.speed);
+    const { audio, driver } = await synthesizeTts(job.content.bodyPlain, voice, preferred, rate);
     const checksum = sha256Hex(audio);
     const storageKey = `tts/${job.contentId}/${Date.now()}.mp3`;
     const stored = await putMediaObject({
@@ -203,13 +236,27 @@ export async function processTtsJob(jobId: string) {
   }
 }
 
-/** Tạo job + chạy sync (approve flow) */
-export async function enqueueAndRunTts(contentId: string, opts?: { voice?: string; sync?: boolean }) {
+/** Tạo job + chạy sync (approve / run_tts / API tts/jobs) */
+export async function enqueueAndRunTts(
+  contentId: string,
+  opts?: TtsVoiceOpts & { sync?: boolean },
+) {
   const driver = ttsDriver();
+  const voice = resolveTtsVoice(opts);
+  const speed =
+    opts?.speed != null && Number.isFinite(Number(opts.speed))
+      ? Math.min(1.5, Math.max(0.8, Number(opts.speed)))
+      : 1.0;
+  const voiceGender = opts?.voiceGender ? String(opts.voiceGender) : null;
+  const region = opts?.region ? String(opts.region) : null;
+
   const job = await prisma.ttsJob.create({
     data: {
       contentId,
-      voice: opts?.voice || ttsVoice(),
+      voice,
+      voiceGender,
+      region,
+      speed,
       driver,
       status: "queued",
     },
