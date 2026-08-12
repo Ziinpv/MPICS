@@ -7,6 +7,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { UserRole } from "@prisma/client";
 import { writeAuditLog } from "@/lib/audit";
 import { clientIp } from "@/lib/rateLimit";
+import { sendAccountCredentialsMail } from "@/lib/accountMail";
 
 export async function GET(req: NextRequest) {
   const user = await getSession();
@@ -59,11 +60,17 @@ export async function POST(req: NextRequest) {
   const username = body?.username?.trim();
   const fullName = body?.fullName?.trim();
   const password = body?.password || "Demo@123";
+  const email = body?.email?.trim() || null;
   const role = body?.role === "ADMIN" ? UserRole.ADMIN : UserRole.USER;
   const orgId = body?.orgId;
+  const sendEmail = body?.sendEmail !== false;
 
   if (!username || !fullName || !orgId) {
     return jsonError("Thiếu username / fullName / orgId");
+  }
+
+  if (sendEmail && !email) {
+    return jsonError("Cần email cá nhân để gửi thông báo tài khoản (hoặc tắt sendEmail)");
   }
 
   const strength = validatePasswordStrength(password);
@@ -79,7 +86,7 @@ export async function POST(req: NextRequest) {
     data: {
       username,
       fullName,
-      email: body.email?.trim() || null,
+      email,
       phone: body.phone?.trim() || null,
       role,
       orgId,
@@ -90,12 +97,29 @@ export async function POST(req: NextRequest) {
     include: { org: { select: { id: true, name: true, type: true, code: true } } },
   });
 
+  let notified = sendEmail
+    ? await sendAccountCredentialsMail({
+        to: created.email,
+        fullName: created.fullName,
+        username: created.username,
+        temporaryPassword: password,
+        orgName: created.org?.name,
+        kind: "created",
+      })
+    : { emailed: false as const, reason: "skipped" as const };
+
   await writeAuditLog({
     actor: user,
     action: "user.create",
     entityType: "User",
     entityId: created.id,
-    meta: { username: created.username, role: created.role, orgId },
+    meta: {
+      username: created.username,
+      role: created.role,
+      orgId,
+      email: created.email,
+      notified,
+    },
     ip: clientIp(req),
   });
 
@@ -113,6 +137,17 @@ export async function POST(req: NextRequest) {
         org: created.org,
         mustChangePassword: created.mustChangePassword,
       },
+      notified,
+      message: notified.emailed
+        ? `Đã tạo ${created.username} và gửi email tới ${created.email}`
+        : `Đã tạo ${created.username}` +
+          (notified.reason === "smtp_not_configured"
+            ? " — chưa cấu hình SMTP (Mailpit/SMTP_*)"
+            : notified.reason === "mail_error"
+              ? ` — gửi mail lỗi: ${"detail" in notified ? notified.detail : ""}`
+              : notified.reason === "skipped"
+                ? " — không gửi email"
+                : ""),
     },
     { status: 201 },
   );

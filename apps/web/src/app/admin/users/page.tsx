@@ -117,7 +117,7 @@ export default function AdminUsersPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Tạo lỗi");
-        setMsg(`Đã tạo user ${form.username}`);
+        setMsg(data.message || `Đã tạo user ${form.username}`);
       }
       setShowForm(false);
       await load();
@@ -207,11 +207,13 @@ export default function AdminUsersPage() {
               />
             </div>
             <div>
-              <label>Email</label>
+              <label>Email cá nhân (bắt buộc khi tạo — nhận username + MK tạm)</label>
               <input
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                required={!editing}
+                placeholder="vd. canboxa@gmail.com"
               />
             </div>
             <div>
