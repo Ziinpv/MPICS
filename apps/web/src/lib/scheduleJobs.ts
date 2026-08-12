@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { resolveDevicesForSchedule } from "@/lib/routing";
 
 /** Phút trong ngày theo timezone Asia/Ho_Chi_Minh (UTC+7 cố định, đủ cho local/demo) */
 export function minutesOfDay(date = new Date(), timezone = "Asia/Ho_Chi_Minh"): number {
@@ -97,23 +98,24 @@ export async function publishScheduleCommands(input: {
     );
   }
 
-  const includeClusterIds = schedule.targets.filter((t) => t.include).map((t) => t.clusterId);
-  const devices = await prisma.device.findMany({
-    where: { clusterId: { in: includeClusterIds }, status: "active" },
-  });
+  const includeCount = schedule.targets.filter((t) => t.include).length;
+  if (!includeCount) throw new Error("Lịch cần ít nhất 1 cụm include");
+
+  const resolved = await resolveDevicesForSchedule(schedule.id);
+  if (!resolved.length) throw new Error("Không có thiết bị active sau routing include/exclude");
 
   const isEmergency = schedule.campaign.type === "emergency" || schedule.preempt;
   let preempted = { stopped: 0 };
   if (isEmergency) {
     preempted = await preemptLowerPriority(
-      devices.map((d) => d.id),
+      resolved.map((d) => d.id),
       schedule.id,
     );
   }
 
   const item = schedule.items[0];
   const commands = await Promise.all(
-    devices.map((d) =>
+    resolved.map((d) =>
       prisma.deviceCommand.create({
         data: {
           deviceId: d.id,

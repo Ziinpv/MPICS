@@ -65,4 +65,4 @@ Khi emergency chạy: gửi `stop` lịch thường trên cùng device → phát
 - [x] Emergency preempt (stop play pending/sent + lệnh `stop`).
 - [x] Calendar tuần trên `/admin/schedules`.
 - [ ] Device từ chối file không đúng chữ ký.
-- [ ] Play log ghi nhận ok/error theo thiết bị.
+- [x] Play log ghi nhận ok/error theo thiết bị (`DevicePlayLog` khi ack play).

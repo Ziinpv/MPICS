@@ -1,7 +1,7 @@
 # Tiến độ & lộ trình sản xuất — MPCIS
 
-> Cập nhật: **10 Aug 2026**  
-> Trạng thái: **Staging pack + MQTT TLS/ACL + edge-tts pipeline (code)** · Next: SSH deploy host.  
+> Cập nhật: **12 Aug 2026**  
+> Trạng thái: NV02/08/10 vận hành local + play logs / broadcast report / notify resolve.  
 > Repo: https://github.com/Ziinpv/MPICS
 
 ---

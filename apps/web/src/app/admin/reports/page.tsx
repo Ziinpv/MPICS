@@ -27,13 +27,29 @@ async function downloadCsv(url: string, fallbackName: string) {
   URL.revokeObjectURL(objectUrl);
 }
 
+function defaultFrom() {
+  const d = new Date();
+  d.setDate(d.getDate() - 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultTo() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function AdminReportsPage() {
   const [locationType, setLocationType] = useState("");
   const [status, setStatus] = useState("");
   const [orgId, setOrgId] = useState("");
   const [communes, setCommunes] = useState<any[]>([]);
   const [cmdStatus, setCmdStatus] = useState("");
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
+  const [incidentStatus, setIncidentStatus] = useState("");
   const [msg, setMsg] = useState("");
+  const [uptimeSummary, setUptimeSummary] = useState<any>(null);
+  const [incidentSummary, setIncidentSummary] = useState<any>(null);
+  const [broadcastSummary, setBroadcastSummary] = useState<any>(null);
 
   useEffect(() => {
     fetch("/api/meta")
@@ -77,13 +93,121 @@ export default function AdminReportsPage() {
     }
   }
 
+  async function loadUptime() {
+    setMsg("");
+    const q = new URLSearchParams({
+      from: new Date(from).toISOString(),
+      to: new Date(to + "T23:59:59").toISOString(),
+    });
+    const res = await fetch(`/api/reports/device-uptime?${q}`);
+    const data = await res.json();
+    if (!res.ok) setMsg(data.error || "Uptime lỗi");
+    else {
+      setUptimeSummary(data.summary);
+      setMsg(`Uptime: TB ${data.summary?.avgUptimePct}% · ${data.summary?.onlineNow}/${data.summary?.deviceCount} online`);
+    }
+  }
+
+  async function exportUptime() {
+    setMsg("");
+    const q = new URLSearchParams({
+      format: "csv",
+      from: new Date(from).toISOString(),
+      to: new Date(to + "T23:59:59").toISOString(),
+    });
+    try {
+      await downloadCsv(`/api/reports/device-uptime?${q}`, `bao-cao-uptime-${Date.now()}.csv`);
+      setMsg("Đã tải CSV uptime");
+    } catch (e: any) {
+      setMsg(e?.message || "Xuất lỗi");
+    }
+  }
+
+  async function loadIncidents() {
+    setMsg("");
+    const q = new URLSearchParams({
+      from: new Date(from).toISOString(),
+      to: new Date(to + "T23:59:59").toISOString(),
+    });
+    if (incidentStatus) q.set("status", incidentStatus);
+    const res = await fetch(`/api/reports/incidents?${q}`);
+    const data = await res.json();
+    if (!res.ok) setMsg(data.error || "Incidents lỗi");
+    else {
+      setIncidentSummary(data.summary);
+      setMsg(
+        `Sự cố: ${data.summary?.total} · MTTR ${data.summary?.mttrMinutes ?? "—"} phút`,
+      );
+    }
+  }
+
+  async function exportIncidents() {
+    setMsg("");
+    const q = new URLSearchParams({
+      format: "csv",
+      from: new Date(from).toISOString(),
+      to: new Date(to + "T23:59:59").toISOString(),
+    });
+    if (incidentStatus) q.set("status", incidentStatus);
+    try {
+      await downloadCsv(`/api/reports/incidents?${q}`, `bao-cao-su-co-${Date.now()}.csv`);
+      setMsg("Đã tải CSV sự cố");
+    } catch (e: any) {
+      setMsg(e?.message || "Xuất lỗi");
+    }
+  }
+
+  async function loadBroadcasts() {
+    setMsg("");
+    const q = new URLSearchParams({
+      from: new Date(from).toISOString(),
+      to: new Date(to + "T23:59:59").toISOString(),
+    });
+    const res = await fetch(`/api/reports/broadcasts?${q}`);
+    const data = await res.json();
+    if (!res.ok) setMsg(data.error || "Broadcast lỗi");
+    else {
+      setBroadcastSummary(data.summary);
+      setMsg(
+        `Phát sóng: ${data.summary?.totalPlays ?? 0} lượt · success ${data.summary?.successRatePct ?? "—"}%`,
+      );
+    }
+  }
+
+  async function exportBroadcasts() {
+    setMsg("");
+    const q = new URLSearchParams({
+      format: "csv",
+      from: new Date(from).toISOString(),
+      to: new Date(to + "T23:59:59").toISOString(),
+    });
+    try {
+      await downloadCsv(`/api/reports/broadcasts?${q}`, `bao-cao-phat-song-${Date.now()}.csv`);
+      setMsg("Đã tải CSV phát sóng");
+    } catch (e: any) {
+      setMsg(e?.message || "Xuất lỗi");
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="Báo cáo vận hành"
-        subtitle="Xuất CSV UTF-16 (Tab) — GIS · lệnh IoT · audit · phạm vi orgPath Admin"
+        subtitle="CSV UTF-16 · GIS · lệnh IoT · uptime · sự cố · audit"
       />
       {msg && <p className="mb-3 text-sm text-brand-700">{msg}</p>}
+
+      <Card className="mb-6 flex flex-wrap items-end gap-3">
+        <div>
+          <label>Từ ngày</label>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </div>
+        <div>
+          <label>Đến ngày</label>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
+        <p className="text-xs text-slate-500">Áp dụng cho báo cáo uptime & sự cố</p>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="space-y-4">
@@ -123,7 +247,7 @@ export default function AdminReportsPage() {
         <Card className="space-y-4">
           <h2 className="font-semibold text-slate-900">2. Lệnh IoT</h2>
           <p className="text-sm text-slate-500">
-            pending / sent / acked / timeout / failed — xem live tại{" "}
+            Xem live tại{" "}
             <Link href="/admin/iot" className="text-teal-700 underline">
               Dashboard IoT
             </Link>
@@ -145,10 +269,85 @@ export default function AdminReportsPage() {
           </Btn>
         </Card>
 
-        <Card className="space-y-4 lg:col-span-2">
-          <h2 className="font-semibold text-slate-900">3. Nhật ký hệ thống (Audit)</h2>
+        <Card className="space-y-4">
+          <h2 className="font-semibold text-slate-900">3. Device uptime</h2>
           <p className="text-sm text-slate-500">
-            Xuất tối đa 2000 sự kiện gần nhất. Lọc chi tiết tại{" "}
+            Ước lượng từ cảnh báo offline trong khoảng ngày
+          </p>
+          {uptimeSummary && (
+            <p className="text-sm text-slate-700">
+              TB uptime <strong>{uptimeSummary.avgUptimePct}%</strong> · online{" "}
+              {uptimeSummary.onlineNow}/{uptimeSummary.deviceCount}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="secondary" onClick={loadUptime}>
+              Xem tóm tắt
+            </Btn>
+            <Btn onClick={exportUptime}>
+              <ActionIcon action="download" size="sm" />
+              Xuất CSV uptime
+            </Btn>
+          </div>
+        </Card>
+
+        <Card className="space-y-4">
+          <h2 className="font-semibold text-slate-900">4. Sự cố (incidents)</h2>
+          <div>
+            <label>Trạng thái</label>
+            <select value={incidentStatus} onChange={(e) => setIncidentStatus(e.target.value)}>
+              <option value="">Tất cả</option>
+              {["open", "assigned", "in_progress", "resolved", "closed"].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          {incidentSummary && (
+            <p className="text-sm text-slate-700">
+              Tổng <strong>{incidentSummary.total}</strong> · MTTR{" "}
+              {incidentSummary.mttrMinutes ?? "—"} phút
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="secondary" onClick={loadIncidents}>
+              Xem tóm tắt
+            </Btn>
+            <Btn onClick={exportIncidents}>
+              <ActionIcon action="download" size="sm" />
+              Xuất CSV sự cố
+            </Btn>
+          </div>
+        </Card>
+
+        <Card className="space-y-4">
+          <h2 className="font-semibold text-slate-900">5. Phát sóng (play logs)</h2>
+          <p className="text-sm text-slate-500">
+            Ghi khi device ack lệnh <code className="text-xs">play</code> (sim/MQTT)
+          </p>
+          {broadcastSummary && (
+            <p className="text-sm text-slate-700">
+              {broadcastSummary.totalPlays} lượt · OK {broadcastSummary.ok} · lỗi{" "}
+              {broadcastSummary.error} · success{" "}
+              <strong>{broadcastSummary.successRatePct ?? "—"}%</strong>
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="secondary" onClick={loadBroadcasts}>
+              Xem tóm tắt
+            </Btn>
+            <Btn onClick={exportBroadcasts}>
+              <ActionIcon action="download" size="sm" />
+              Xuất CSV phát sóng
+            </Btn>
+          </div>
+        </Card>
+
+        <Card className="space-y-4 lg:col-span-2">
+          <h2 className="font-semibold text-slate-900">6. Nhật ký hệ thống (Audit)</h2>
+          <p className="text-sm text-slate-500">
+            Lọc chi tiết tại{" "}
             <Link href="/admin/audit" className="text-teal-700 underline">
               Nhật ký hệ thống
             </Link>

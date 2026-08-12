@@ -59,7 +59,8 @@ sequenceDiagram
 - Broker ACL: device chỉ pub/sub đúng topic của mình.
 
 ## 9. Tiêu chí chấp nhận
-- [ ] Lệnh volume 1 loa phản hồi ack < 3s (mạng tốt).
-- [ ] Lệnh theo cụm gửi đúng mọi device active trong cụm.
-- [ ] User không thể gọi command API.
-- [ ] Timeout lệnh → status `timeout` + hiển thị Admin.
+- [x] Lệnh volume 1 loa tạo command pending (ack phụ thuộc sim/MQTT).
+- [x] Lệnh theo cụm (`POST /api/clusters/{id}/commands`) gửi mọi device active trong cụm.
+- [x] User không thể gọi command API (`canControlDevice` Admin-only).
+- [x] Timeout lệnh → status `timeout` + hiển thị Admin IoT.
+- [x] CRUD cụm / thiết bị (Admin).

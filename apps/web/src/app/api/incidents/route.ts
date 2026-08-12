@@ -18,6 +18,12 @@ export async function GET() {
     include: {
       device: true,
       reporter: { select: { fullName: true } },
+      assignee: { select: { fullName: true } },
+      comments: {
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        include: { author: { select: { fullName: true } } },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -47,7 +53,9 @@ export async function POST(req: NextRequest) {
       title: body.title,
       description: body.description,
       severity: (body.severity as IncidentSeverity) || "medium",
-      photoKeys: body.photoKeys || [],
+      photoKeys: Array.isArray(body.photoKeys)
+        ? body.photoKeys.map((k: string) => String(k))
+        : [],
     },
   });
   return jsonOk({ incident }, { status: 201 });

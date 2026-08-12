@@ -34,7 +34,9 @@ export default function AdminSchedulesPage() {
   const [clusters, setClusters] = useState<any[]>([]);
   const [name, setName] = useState("Lịch phát demo");
   const [contentId, setContentId] = useState("");
-  const [clusterId, setClusterId] = useState("");
+  const [includeIds, setIncludeIds] = useState<string[]>([]);
+  const [excludeIds, setExcludeIds] = useState<string[]>([]);
+  const [preview, setPreview] = useState<{ count: number; devices: any[] } | null>(null);
   const [mode, setMode] = useState<"oneshot" | "periodic" | "emergency">("oneshot");
   const [intervalMinutes, setIntervalMinutes] = useState(30);
   const [windowStart, setWindowStart] = useState("06:00");
@@ -55,7 +57,7 @@ export default function AdminSchedulesPage() {
     setContents(ready);
     setClusters(m.clusters || []);
     if (!contentId && ready[0]) setContentId(ready[0].id);
-    if (!clusterId && m.clusters?.[0]) setClusterId(m.clusters[0].id);
+    if (!includeIds.length && m.clusters?.[0]) setIncludeIds([m.clusters[0].id]);
   }
 
   useEffect(() => {
@@ -98,13 +100,24 @@ export default function AdminSchedulesPage() {
 
   async function createSchedule(e: React.FormEvent) {
     e.preventDefault();
+    if (!includeIds.length) {
+      setMsg("Chọn ít nhất 1 cụm include");
+      return;
+    }
+    const targets = [
+      ...includeIds.map((clusterId) => ({ clusterId, include: true })),
+      ...excludeIds.filter((id) => !includeIds.includes(id)).map((clusterId) => ({
+        clusterId,
+        include: false,
+      })),
+    ];
     const res = await fetch("/api/schedules", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
         contentId,
-        clusterId,
+        targets,
         intervalMinutes: mode === "periodic" ? intervalMinutes : null,
         emergency: mode === "emergency",
         preempt: mode === "emergency",
@@ -123,7 +136,18 @@ export default function AdminSchedulesPage() {
             ? "Đã tạo lịch định kỳ"
             : "Đã tạo lịch oneshot",
       );
+      setPreview(null);
       load();
+    }
+  }
+
+  async function previewDevices(id: string) {
+    const res = await fetch(`/api/schedules/${id}/resolved-devices`);
+    const data = await res.json();
+    if (!res.ok) setMsg(data.error || "Preview lỗi");
+    else {
+      setPreview({ count: data.count, devices: data.devices || [] });
+      setMsg(`Preview: ${data.count} thiết bị sẽ nhận lệnh`);
     }
   }
 
@@ -257,21 +281,60 @@ export default function AdminSchedulesPage() {
               ))}
             </select>
           </div>
-          <div>
-            <label>Cụm đích</label>
-            <select value={clusterId} onChange={(e) => setClusterId(e.target.value)} required>
-              <option value="">— chọn —</option>
-              {clusters.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.org?.name})
-                </option>
-              ))}
-            </select>
+          <div className="md:col-span-2 grid gap-3 md:grid-cols-2">
+            <div>
+              <label>Cụm include (Ctrl/Cmd chọn nhiều)</label>
+              <select
+                multiple
+                className="min-h-[100px]"
+                value={includeIds}
+                onChange={(e) =>
+                  setIncludeIds(Array.from(e.target.selectedOptions).map((o) => o.value))
+                }
+                required
+              >
+                {clusters.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.org?.name})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label>Cụm exclude (tuỳ chọn)</label>
+              <select
+                multiple
+                className="min-h-[100px]"
+                value={excludeIds}
+                onChange={(e) =>
+                  setExcludeIds(Array.from(e.target.selectedOptions).map((o) => o.value))
+                }
+              >
+                {clusters.map((c) => (
+                  <option key={c.id} value={c.id} disabled={includeIds.includes(c.id)}>
+                    {c.name} ({c.org?.name})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <Btn type="submit">Tạo lịch</Btn>
           </div>
         </form>
+        {preview && (
+          <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-xs">
+            <div className="mb-1 font-medium">Preview resolved: {preview.count} thiết bị</div>
+            <ul className="max-h-32 overflow-y-auto font-mono">
+              {preview.devices.map((d) => (
+                <li key={d.id}>
+                  {d.deviceCode} — {d.name}
+                  {d.online ? " ●" : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Card>
 
       <Card className="mb-6">
@@ -341,7 +404,7 @@ export default function AdminSchedulesPage() {
               <th>Loại</th>
               <th>Khung giờ</th>
               <th>Trạng thái</th>
-              <th>Cụm</th>
+              <th>Routing</th>
               <th>Lịch</th>
               <th></th>
             </tr>
@@ -363,18 +426,37 @@ export default function AdminSchedulesPage() {
                 </td>
                 <td className="text-xs text-slate-600">{fmtWindow(s.windowStartMin, s.windowEndMin)}</td>
                 <td>{s.status}</td>
-                <td className="text-sm text-slate-600">
-                  {(s.targets || [])
-                    .filter((t: any) => t.include)
-                    .map((t: any) => t.cluster?.name)
-                    .join(", ") || "—"}
+                <td className="text-xs text-slate-600">
+                  <div>
+                    +{" "}
+                    {(s.targets || [])
+                      .filter((t: any) => t.include)
+                      .map((t: any) => t.cluster?.name)
+                      .join(", ") || "—"}
+                  </div>
+                  {(s.targets || []).some((t: any) => !t.include) ? (
+                    <div className="text-rose-600">
+                      −{" "}
+                      {(s.targets || [])
+                        .filter((t: any) => !t.include)
+                        .map((t: any) => t.cluster?.name)
+                        .join(", ")}
+                    </div>
+                  ) : null}
                 </td>
                 <td className="text-xs text-slate-500">
                   {s.nextRunAt
                     ? `next ${new Date(s.nextRunAt).toLocaleString("vi-VN")}`
                     : new Date(s.startAt).toLocaleString("vi-VN")}
                 </td>
-                <td>
+                <td className="space-x-1 whitespace-nowrap">
+                  <Btn
+                    variant="secondary"
+                    className="!px-2 !py-1 text-xs"
+                    onClick={() => previewDevices(s.id)}
+                  >
+                    Preview
+                  </Btn>
                   {(s.status === "scheduled" ||
                     (s.campaign?.type === "periodic" && s.status !== "cancelled") ||
                     (s.campaign?.type === "emergency" && s.status === "scheduled")) && (

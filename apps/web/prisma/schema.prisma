@@ -169,6 +169,7 @@ model User {
   moderationReviews   ModerationReview[] @relation("ModerationReviewer")
   reviewedContents    Content[] @relation("ContentReviewer")
   resolvedAlerts      DeviceAlert[] @relation("AlertResolver")
+  incidentComments    IncidentComment[]
 }
 
 model PasswordResetToken {
@@ -244,6 +245,7 @@ model Device {
   incidents IncidentReport[]
   linkedLocations Location[]
   alerts    DeviceAlert[]
+  playLogs  DevicePlayLog[]
 }
 
 model Location {
@@ -459,6 +461,26 @@ model DeviceCommand {
   createdAt     DateTime      @default(now())
   sentAt        DateTime?
   ackedAt       DateTime?
+
+  playLogs DevicePlayLog[]
+}
+
+/// Nhật ký phát trên thiết bị (ack play / lỗi)
+model DevicePlayLog {
+  id          String   @id @default(cuid())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  commandId   String?
+  command     DeviceCommand? @relation(fields: [commandId], references: [id], onDelete: SetNull)
+  scheduleId  String?
+  title       String?
+  status      String   @default("ok") // ok | error
+  error       String?
+  playedAt    DateTime @default(now())
+
+  @@index([deviceId, playedAt])
+  @@index([scheduleId])
+  @@index([playedAt])
 }
 
 model IncidentReport {
@@ -478,6 +500,19 @@ model IncidentReport {
   assignee    User?            @relation("Assignee", fields: [assigneeId], references: [id])
   createdAt   DateTime         @default(now())
   resolvedAt  DateTime?
+  comments    IncidentComment[]
+}
+
+model IncidentComment {
+  id         String         @id @default(cuid())
+  incidentId String
+  incident   IncidentReport @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User           @relation(fields: [authorId], references: [id])
+  body       String
+  createdAt  DateTime       @default(now())
+
+  @@index([incidentId, createdAt])
 }
 
 enum DeviceAlertType {

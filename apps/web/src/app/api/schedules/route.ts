@@ -23,6 +23,28 @@ function parseTimeToMinutes(v: unknown): number | null {
   return null;
 }
 
+function normalizeTargets(body: any): { clusterId: string; include: boolean }[] {
+  if (Array.isArray(body?.targets) && body.targets.length) {
+    return body.targets.map((t: any) => ({
+      clusterId: String(t.clusterId || t.cluster_id || ""),
+      include: t.include !== false && t.include !== "false",
+    }));
+  }
+  if (body?.clusterId) {
+    const includeIds: string[] = Array.isArray(body.includeClusterIds)
+      ? body.includeClusterIds
+      : [body.clusterId];
+    const excludeIds: string[] = Array.isArray(body.excludeClusterIds)
+      ? body.excludeClusterIds
+      : [];
+    return [
+      ...includeIds.map((clusterId) => ({ clusterId: String(clusterId), include: true })),
+      ...excludeIds.map((clusterId) => ({ clusterId: String(clusterId), include: false })),
+    ];
+  }
+  return [];
+}
+
 export async function GET() {
   const user = await getSession();
   if (!user) return jsonError("Unauthorized", 401);
@@ -45,9 +67,13 @@ export async function POST(req: NextRequest) {
   if (!canManageSchedule(user)) return jsonError("Forbidden", 403);
 
   const body = await req.json().catch(() => null);
-  if (!body?.name || !body?.contentId || !body?.clusterId) {
-    return jsonError("Thiếu name / contentId / clusterId");
+  if (!body?.name || !body?.contentId) {
+    return jsonError("Thiếu name / contentId");
   }
+
+  const targets = normalizeTargets(body).filter((t) => t.clusterId);
+  if (!targets.length) return jsonError("Thiếu targets hoặc clusterId");
+  if (!targets.some((t) => t.include)) return jsonError("Cần ít nhất 1 cụm include");
 
   const content = await prisma.content.findUnique({
     where: { id: body.contentId },
@@ -55,6 +81,17 @@ export async function POST(req: NextRequest) {
   });
   if (!content || content.status !== "ready_to_air") {
     return jsonError("Content phải ở trạng thái ready_to_air");
+  }
+
+  const clusterIds = [...new Set(targets.map((t) => t.clusterId))];
+  const clusters = await prisma.deviceCluster.findMany({
+    where: {
+      id: { in: clusterIds },
+      org: { path: { startsWith: user.orgPath } },
+    },
+  });
+  if (clusters.length !== clusterIds.length) {
+    return jsonError("Một hoặc nhiều cluster ngoài phạm vi");
   }
 
   const emergency = Boolean(body.emergency || body.preempt);
@@ -107,7 +144,10 @@ export async function POST(req: NextRequest) {
         ],
       },
       targets: {
-        create: [{ clusterId: body.clusterId, include: true }],
+        create: targets.map((t) => ({
+          clusterId: t.clusterId,
+          include: t.include,
+        })),
       },
     },
     include: {

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
+import { recordPlayLogFromCommand } from "@/lib/playLog";
 
 /** Simulator poll pending commands */
 export async function GET(req: NextRequest) {
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.commandId) return jsonError("Thiếu commandId");
 
+  const existing = await prisma.deviceCommand.findUnique({ where: { id: body.commandId } });
+  if (!existing) return jsonError("Command not found", 404);
+
   const command = await prisma.deviceCommand.update({
     where: { id: body.commandId },
     data: { status: "acked", ackedAt: new Date() },
@@ -42,5 +46,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return jsonOk({ command });
+  let playLog = null;
+  if (command.commandType === "play") {
+    playLog = await recordPlayLogFromCommand(command.id, {
+      error: typeof body.error === "string" ? body.error : undefined,
+    });
+  }
+
+  return jsonOk({ command, playLog });
 }

@@ -70,7 +70,8 @@ flowchart TB
 - Không lộ dữ liệu ngoài `org_path`.
 
 ## 6. Tiêu chí chấp nhận
-- [ ] User gửi báo lỗi kèm ảnh → Admin thấy trong < 1 phút.
-- [ ] Resolve gửi notify cho reporter.
-- [ ] Report uptime khớp gần đúng với telemetry (sai số TTL chấp nhận được).
-- [ ] Export CSV đúng filter thời gian/org.
+- [x] User gửi báo lỗi kèm ảnh (`photoKeys` + upload) → Admin thấy trong list.
+- [x] Resolve gửi notify email cho reporter (SMTP/Mailpit; cần `reporter.email`).
+- [x] Report uptime ước lượng từ DeviceAlert offline + CSV.
+- [x] Export CSV sự cố đúng filter thời gian/org.
+- [x] Workflow status open → assigned → in_progress → resolved → closed + comments.

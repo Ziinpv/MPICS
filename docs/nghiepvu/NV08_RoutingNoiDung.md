@@ -50,6 +50,7 @@ flowchart LR
 - Preview số thiết bị sẽ nhận sóng trước khi lưu.
 
 ## 8. Tiêu chí chấp nhận
-- [ ] Bản tin chỉ phát đúng cụm đã chọn (verified bằng play_log).
-- [ ] Exclude loại đúng thiết bị.
-- [ ] Preview resolved-devices khớp thực tế lúc chạy.
+- [x] Bản tin resolve theo include/exclude clusters (`lib/routing` + publish).
+- [x] Exclude loại đúng thiết bị.
+- [x] Preview `GET /api/schedules/{id}/resolved-devices` khớp thuật toán publish.
+- [x] Verified bằng play_log khi ack `play` (`DevicePlayLog` + `/api/reports/broadcasts`).

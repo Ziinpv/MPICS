@@ -79,6 +79,24 @@ Publish lịch → bridge `sent` → sim `acked` trên `/admin/iot`.
 - [ ] Duyệt nội dung → Chạy TTS → có file MP3 / preview
 - [ ] Từ chối có lý do + người duyệt
 - [ ] Lịch oneshot / periodic / emergency + khung giờ + calendar
+- [ ] Multi-cụm include/exclude + Preview resolved-devices
+- [ ] CRUD thiết bị/cụm + lệnh fan-out cụm
+- [ ] Sự cố có ảnh + workflow Admin
+- [ ] Báo cáo uptime / incidents CSV
 - [ ] `jobs:run` tạo offline alert khi device stale
 - [ ] MQTT bridge + sim không `ECONNREFUSED`
 - [ ] Device chỉ pub được topic của mình (ACL)
+
+## 5. Vận hành NV02 / NV08 / NV10 (local)
+
+| Màn hình | Việc làm |
+|----------|----------|
+| `/admin/devices` | Tạo cụm/thiết bị · lệnh On/Off/Stop · gửi lệnh cả cụm |
+| `/admin/schedules` | Chọn nhiều cụm include/exclude · Preview thiết bị · Publish |
+| `/user/incidents` | Báo sự cố + upload ảnh |
+| `/admin/incidents` | Assign / Đang xử lý / Resolve / Đóng + ghi chú |
+| `/admin/reports` | Xuất CSV uptime & sự cố & phát sóng (play logs) theo khoảng ngày |
+
+Play log: khi sim/MQTT ack lệnh `play` → `DevicePlayLog` · xem `/api/play-logs` hoặc báo cáo broadcasts.
+
+Resolve sự cố: nếu SMTP cấu hình (Mailpit local) và reporter có email → gửi mail thông báo.
